@@ -1,14 +1,75 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
+enum GlobalRole{
+  ADMIN
+  MEMBER
+}
+enum ProjectRole{
+  ADMIN
+  MEMBER
+  VIEWER
+}
+enum TaskType{
+  STORY
+  TASK
+  BUG
+}
+enum Priority{
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User{
+  id Int @id @default(autoincrement())
+  email String @unique
+  passwordHash String
+  avatarUrl String?
+  name String
+  globalRole GlobalRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  refreshTokens RefreshToken[]
+  projectMembers ProjectMember[]
+  assignedTasks Task[] @relation("Assignee")
+  reportedTaska Task[] @relation("Reporter")
+  comments Comment[]
+  auditAction Auditlog[]
+  notifications Notification[]
+}
+model RefreshToken{
+id Int @id @default(autoincrement())
+token String @unique
+userID Int
+user User @relation(fields: [userID], references: [id], onDelete: Cascade)
+createdAt DateTime @default(now())
+expiresAt DateTime
+}
+
+model Project{
+  id Int @id @default(autoincrement())
+  name String
+  description String?
+  archived Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projectMembers ProjectMember[]
+  boards Board[]
+
+}
+model ProjectMember{
+  id Int @id @default(autoincrement())
+  userID Int
+  projectID Int
+  role ProjectRole @default(MEMBER)
+  user User @relation (fields:[userID],references:[id], onDelete: Cascade)
+  project Project @relation(fields:[projectID],references: [id],onDelete: Cascade)
+}
+
+
