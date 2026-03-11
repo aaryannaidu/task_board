@@ -1,23 +1,18 @@
-import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
-import cookieParser from 'cookie-parser';
-import authrouter from './auth/routes';
 dotenv.config();
 
+import express, { Request, Response } from 'express';
+import cookieParser from 'cookie-parser';
 const app = express();
-const PORT = process.env.PORT ?? 3000;
+const PORT = process.env.PORT;
 
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/api/auth', authrouter);
-
+app.use('/api/auth', require('./auth/routes').default);
 app.get('/', (_req: Request, res: Response) => {
-    res.json({ message: 'Hello World!', status: 'ok' });
+    res.json({ message: 'Server is running', status: 'ok' });
 });
-
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
-
-// 

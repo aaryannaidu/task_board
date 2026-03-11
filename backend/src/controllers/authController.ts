@@ -1,42 +1,96 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import prisma from '../utils/prisma';
+import {Request,Response} from 'express';
+// import bcrypt from 'bcryptjs';
+import prisma from "../utils/prisma";
+import {HashPassword,ComparePassword} from '../utils/password';
+import { signAccessToken, signRefreshToken} from '../utils/jwt';
+import {RegisterBody,LoginBody} from '../types/index';
 
-export async function register(req: Request, res: Response): Promise<void> {
-  try {
-    // get name, email, password from request body
-    const { name, email, password } = req.body as {
-      name: string;
-      email: string;
-      password: string;
-    };
-
-    // check all fields exist
-    if (!name || !email || !password) {
-      res.status(400).json({ error: 'Name, email and password are required' });
+// ====
+// registeration
+// ====
+export async function Register(req:Request,res:Response):Promise<void>{
+  try{  
+    const {name,email,password}= req.body as RegisterBody;
+    if(!name||!email||!password){
+      res.status(400).json({message:"Name, email and password are required"});
       return;
     }
-
-    // check email not already taken
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      res.status(400).json({ error: 'Email already in use' });
+    const existingemail= await prisma.user.findUnique({where:{email}});
+    if(existingemail){
+      res.status(400).json({message:"Email already exists , Try Different one"});
       return;
     }
-
-    // hash the password directly here
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // save user to database
-    const user = await prisma.user.create({
-      data: { name, email, passwordHash }
+    const passwordHash= await HashPassword(password);
+    const user= await prisma.user.create({
+      data:{name,email,passwordHash}
     });
+    const {passwordHash:_,...safeuser}=user;
+    res.status(201).json({safeuser,message:"User Registered Successfully"});
+  }catch(error:unknown){
+    res.status(500).json({message:"Something went wrong, Please try again later"});
+  }
+}
+// ====
+// login
+// ====
+export async function Login(req:Request,res:Response):Promise<void>{
+  try{
+    const{email,password}= req.body as LoginBody;
+    if(!email||!password){
+      res.status(400).json({message:"Email and password are required"});
+      return;
+    }
+    const user= await prisma.user.findUnique({where:{email}});
+    if(!user){
+      res.status(401).json({message:"Invalid email or password"});
+      return;
+    }
+    const validpassword = await ComparePassword(password,user.passwordHash);
+    if(!validpassword){
+      res.status(401).json({message:"Invalid email or password"});
+      return;
+    }
+    const accessToken= signAccessToken(user.id,user.globalRole);
+    const refereshToken= signRefreshToken(user.id);
+    await prisma.refreshToken.create({
+      data:{
+        token:refereshToken,
+        userID:user.id,
+        expiresAt:new Date(Date.now()+7*24*60*60*1000)
+      }
+    });
+    res.cookie('accessToken',accessToken,{
+      httpOnly:true,
+      sameSite:'lax',
+      secure:false,
+      maxAge:15*60*1000
+    });
+    res.cookie('refrenceToken',refereshToken,{
+      httpOnly:true,
+      sameSite:'lax',
+      secure:false,
+      maxAge:7*24*60*60*1000
+    });
+    const {passwordHash:_,...safeuser}=user;
+    res.status(201).json({safeuser,message:"User Registered Successfully"});
+  } catch(error:unknown){
+    res.status(500).json({message:"Something went wrong, Please try again later"});
+  }
+}
 
-    // return user without passwordHash
-    const { passwordHash: _, ...safeUser } = user;
-    res.status(201).json(safeUser);
-
-  } catch (err: unknown) {
-    res.status(500).json({ error: 'Something went wrong' });
+// ====
+// logout
+// ====
+export async function Logout(req:Request,res:Response):Promise<void>{
+  try{
+    const refreshToken= req.cookies.refrenceToken;
+    if(refreshToken){
+      await prisma.refreshToken.deleteMany({where:{token:refreshToken}});
+    }
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    res.status(200).json({message:"Logged out successfully"});
+  }catch(error:unknown){
+    res.status(500).json({message:"Something went wrong"});
   }
 }
