@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  
+  url      = env("DATABASE_URL")
 }
 enum GlobalRole{
   ADMIN
@@ -119,7 +119,7 @@ model Task{
   assigneeID Int?
   assignee User? @relation("Assignee",fields:[assigneeID],references:[id],onDelete: SetNull)
   reporterID Int
-  reporter User @relation("Reporter",fields:[reporterID],references:[id],onDelete:SetNull)
+  reporter User @relation("Reporter",fields:[reporterID],references:[id],onDelete:Cascade)
   comments Comment[]
   resolveAt DateTime?
   closedAt DateTime?
