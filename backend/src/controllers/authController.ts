@@ -26,6 +26,7 @@ export async function Register(req: Request, res: Response): Promise<void> {
         });
         const { passwordHash: _, ...safeuser } = user;
         res.status(201).json({ safeuser, message: "User Registered Successfully" });
+        console.log("user registerd succefully")
     } catch (error: unknown) {
         res.status(500).json({ message: "Something went wrong, Please try again later" });
     }
@@ -73,6 +74,7 @@ export async function Login(req: Request, res: Response): Promise<void> {
         });
         const { passwordHash: _, ...safeuser } = user;
         res.status(200).json({ safeuser, message: "Logged in successfully" });
+        console.log("user logged in successfully")
     } catch (error: unknown) {
         res.status(500).json({ message: "Something went wrong, Please try again later", error: error instanceof Error ? error.message : String(error) });
     }

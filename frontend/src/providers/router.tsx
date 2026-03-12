@@ -2,16 +2,16 @@ import React from "react";
 import { createBrowserRouter } from "react-router-dom";
 import Home from "../routes/home";
 import Register from "../routes/register";
+import Login from "../routes/login";
 
 const router = createBrowserRouter([
     {
         path: "/",
         element: <Home />,
     },
-    // Adding placeholder routes for Auth based on project.md Phase 1
     {
         path: "/login",
-        element: <div>Login Page (TODO)</div>,
+        element: <Login />,
     },
     {
         path: "/register",
