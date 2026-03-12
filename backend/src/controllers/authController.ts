@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-// import bcrypt from 'bcryptjs';
 import prisma from "../utils/prisma";
 import { hashPwd, checkPwd } from '../utils/hash';
 import { signAccessToken, signRefreshToken } from '../utils/jwt';
