@@ -1,9 +1,0 @@
-{
-  "scripts": {
-    "build": "tsc p1.ts"
-  },
-  "dependencies": {
-    "tsc": "^2.0.4",
-    "typescript": "^5.9.3"
-  }
-}
