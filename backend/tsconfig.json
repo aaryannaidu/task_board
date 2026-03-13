@@ -29,5 +29,8 @@
     "node_modules",
     "dist",
     "**/*.test.ts"
-  ]
+  ],
+  "ts-node": {
+    "files": true
+  }
 }

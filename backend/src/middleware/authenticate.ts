@@ -3,7 +3,7 @@ import { verifyAccessToken }from '../utils/jwt';
 
 export async function authenticate(req:Request,res:Response,next:NextFunction):Promise<void>{
     
-    const token=req.cookies.accessToken;
+    const token=req.cookies.access_token;
     if(!token){
         res.status(401).json({error:"Not Authorized"});
         return;
