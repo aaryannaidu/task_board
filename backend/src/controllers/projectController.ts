@@ -111,18 +111,22 @@ export async function archiveproject(req:Request,res:Response):Promise<void>{
                 projectID:projectid
             }}
         })
-        if(!member|| member.role!=='ADMIN'){
-            res.status(403).json({message:"Only Project Admin can archive project"});
-            return ;
+        if (!member || member.role !== 'ADMIN') {
+            res.status(403).json({ message: "Only Project Admin can archive/unarchive project" });
+            return;
         }
-        const archiveproject= await prisma.project.update({
-            where:{id:projectid},
-            data:{archived:true}
+
+        const newArchivedState = !project.archived;
+        const updatedProject = await prisma.project.update({
+            where: { id: projectid },
+            data: { archived: newArchivedState }
         });
-        res.status(200).json({message:"Project Archived Successfully",project:archiveproject
-        })
+
+        const statusMessage = newArchivedState ? "Project archived successfully" : "Project unarchived successfully";
+        res.status(200).json({ message: statusMessage, project: updatedProject });
+    } catch (error: unknown) {
+        res.status(500).json({ error: "Something went wrong, Please try again later" });
     }
-    catch(error:unknown){}
 }
 
 export async function addmember(req:Request,res:Response):Promise<void>{
@@ -138,40 +142,46 @@ export async function addmember(req:Request,res:Response):Promise<void>{
             return;
         }
         const caller = await prisma.projectMember.findUnique({
-            where:{userID_projectID:{
-                userID:req.user!.userID,
-                projectID:projectid
-            }}
-        })
-        if(req.user?.globalRole !== 'ADMIN' && caller?.role !== 'ADMIN'){
-            res.status(403).json({message:"Only Project Admin can archive project"});
-            return ;
-        }
-        const user_to_add= await prisma.user.findUnique({
-            where:{id:userID}
-        });
-        if(!user_to_add){
-            res.status(404).json({message:"User Not Found"});
-            return;
-        }
-        const existing_member = await prisma.projectMember.findUnique({
-            where:{userID_projectID:{
-                userID:userID,
-                projectID:projectid
-            }}
-        });
-        if(existing_member){
-            res.status(400).json({message:"User already a member of the project"});
-            return;
-        }
-        const add_user = await prisma.projectMember.create({
-            data:{
-                userID:userID,
-                projectID:projectid,
-                role:role
+            where: {
+                userID_projectID: {
+                    userID: req.user!.userID,
+                    projectID: projectid
+                }
             }
-        })
-        res.status(201).json({add_user,message:"User added to project successfully"});
+        });
+        
+        if (req.user?.globalRole !== 'ADMIN' && caller?.role !== 'ADMIN') {
+            res.status(403).json({ message: "Only project admins can add members" });
+            return;
+        }
+        const userToAdd = await prisma.user.findUnique({
+            where: { id: userID }
+        });
+        if (!userToAdd) {
+            res.status(404).json({ message: "User not found" });
+            return;
+        }
+        
+        const existingMember = await prisma.projectMember.findUnique({
+            where: {
+                userID_projectID: {
+                    userID: userID,
+                    projectID: projectid
+                }
+            }
+        });
+        if (existingMember) {
+            res.status(400).json({ message: "User is already a member of this project" });
+            return;
+        }
+        const addedUser = await prisma.projectMember.create({
+            data: {
+                userID: userID,
+                projectID: projectid,
+                role: role
+            }
+        });
+        res.status(201).json({ addedUser, message: "User added to project successfully" });
 
     }
     catch(error:unknown){
@@ -180,15 +190,16 @@ export async function addmember(req:Request,res:Response):Promise<void>{
 }
 
 export async function changememberrole(req:Request,res:Response):Promise<void>{
-    try{
-        const projectid= parseInt(req.params.id as string);
-        const userID = parseInt(req.params.userID as string);
-        const {role}= req.body;
+    try {
+        const projectid = parseInt(req.params.id as string);
+        const userID = parseInt(req.params.userid as string);
+        const { role } = req.body;
+        
         const project = await prisma.project.findUnique({
-            where:{id:projectid}
-        })
-        if(!project){
-            res.status(404).json({message:"proeject Not Found"});
+            where: { id: projectid }
+        });
+        if (!project) {
+            res.status(404).json({ message: "Project not found" });
             return;
         }
         const caller = await prisma.projectMember.findUnique({
@@ -201,15 +212,16 @@ export async function changememberrole(req:Request,res:Response):Promise<void>{
             res.status(403).json({message:"Not Authorized to change member role"});
             return;
         }
-        const update_role = await prisma.projectMember.update({
-            where:{userID_projectID:{
-                userID:userID,
-                projectID:projectid
-            }
-        },
-        data:{role:role}
+        const updatedRole = await prisma.projectMember.update({
+            where: {
+                userID_projectID: {
+                    userID: userID,
+                    projectID: projectid
+                }
+            },
+            data: { role: role }
         });
-        res.status(200).json({update_role,message:"Member Role Updated Successfully "});
+        res.status(200).json({ updatedRole, message: "Member role updated successfully" });
     }
     catch(error:unknown){
         res.status(500).json({error:"Something went wrong, Please try again later"});
@@ -217,14 +229,15 @@ export async function changememberrole(req:Request,res:Response):Promise<void>{
 }
 
 export async function removemember(req:Request,res:Response):Promise<void>{
-    try{
-        const projectid= parseInt(req.params.id as string);
-        const userID = parseInt(req.params.userID as string);
+    try {
+        const projectid = parseInt(req.params.id as string);
+        const userID = parseInt(req.params.userid as string);
+        
         const project = await prisma.project.findUnique({
-            where:{id:projectid}
-        })
-        if(!project){
-            res.status(404).json({message:"proeject Not Found"});
+            where: { id: projectid }
+        });
+        if (!project) {
+            res.status(404).json({ message: "Project not found" });
             return;
         }
         const caller = await prisma.projectMember.findUnique({
@@ -233,8 +246,8 @@ export async function removemember(req:Request,res:Response):Promise<void>{
                 projectID:projectid
             }}
         })
-        if(req.user?.globalRole !== 'ADMIN' && caller?.role !== 'ADMIN'){
-            res.status(403).json({message:"Not Authorized to change member role"});
+        if (req.user?.globalRole !== 'ADMIN' && caller?.role !== 'ADMIN') {
+            res.status(403).json({ message: "Not authorized to remove members" });
             return;
         }
         const admin= await prisma.projectMember.findMany({
@@ -248,14 +261,91 @@ export async function removemember(req:Request,res:Response):Promise<void>{
             return;
         }
         await prisma.projectMember.delete({
-            where:{userID_projectID:{
-                userID:userID,
-                projectID:projectid
-            }}
+            where: {
+                userID_projectID: {
+                    userID: userID,
+                    projectID: projectid
+                }
+            }
         });
-        res.status(200).json({message:"Member removed from project "});
+        res.status(200).json({ message: "Member removed from project" });
     }
     catch(error:unknown){
         res.status(500).json({error:"Something went wrong, Please try again later"});
+    }
+}
+
+export async function getprojectdetails(req: Request, res: Response): Promise<void> {
+    try {
+        const projectid = parseInt(req.params.id as string);
+        const project = await prisma.project.findUnique({
+            where: { id: projectid },
+            include: {
+                boards: true,
+                projectMembers: {
+                    include: {
+                        user: {
+                            select: { id: true, name: true, email: true, avatarUrl: true }
+                        }
+                    }
+                }
+            }
+        });
+        
+        if (!project) {
+            res.status(404).json({ message: "Project not found" });
+            return;
+        }
+
+        const isMember = project.projectMembers.some(pm => pm.userID === req.user!.userID);
+        if (!isMember && req.user!.globalRole !== 'ADMIN') {
+            res.status(403).json({ message: "Not authorized to view this project" });
+            return;
+        }
+
+        res.status(200).json(project);
+    } catch (error: unknown) {
+        res.status(500).json({ message: "Something went wrong, Please try again later" });
+    }
+}
+
+export async function getprojectmembers(req: Request, res: Response): Promise<void> {
+    try {
+        const projectid = parseInt(req.params.id as string);
+        
+        const project = await prisma.project.findUnique({
+            where: { id: projectid }
+        });
+        if (!project) {
+            res.status(404).json({ message: "Project not found" });
+            return;
+        }
+
+        const caller = await prisma.projectMember.findUnique({
+            where: {
+                userID_projectID: {
+                    userID: req.user!.userID,
+                    projectID: projectid
+                }
+            }
+        });
+
+        if (!caller && req.user!.globalRole !== 'ADMIN') {
+            res.status(403).json({ message: "Not authorized to view project members" });
+            return;
+        }
+
+        const members = await prisma.projectMember.findMany({
+            where: { projectID: projectid },
+            include: {
+                user: {
+                    select: { id: true, name: true, email: true, avatarUrl: true }
+                }
+            }
+        });
+
+        res.status(200).json(members);
+    } catch (error: unknown) {
+        res.status(500).json({ message: "Something went wrong, Please try again later" });
     }
 }
