@@ -15,7 +15,7 @@ app.use(cookieParser());
 
 app.use('/api/auth', require('./routes/auth').default);
 app.use('/api/projects', authenticate, require('./routes/project_router').default);
-
+app.use('/api/projects/:projectid/boards',authenticate,require('./routes/board_router').default);
 
 app.get('/', (_req: Request, res: Response) => {
     res.json({ message: 'Server is running', status: 'ok' });
