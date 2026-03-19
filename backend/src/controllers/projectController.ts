@@ -44,7 +44,21 @@ export async function createProject(req: Request, res: Response): Promise<void> 
             return;
         }
         const newproject = await prisma.project.create({
-            data: { name, description }
+            data: { name, description },
+            include: {
+                projectMembers: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                avatarUrl: true
+                            }
+                        }
+                    }
+                }
+            }
         });
         await prisma.projectMember.create({
             data: {
@@ -53,7 +67,26 @@ export async function createProject(req: Request, res: Response): Promise<void> 
                 role: 'ADMIN'
             }
         });
-        res.status(201).json(newproject);
+
+        // Re-fetch the project so the creator's membership is included in the response
+        const projectWithMembers = await prisma.project.findUnique({
+            where: { id: newproject.id },
+            include: {
+                projectMembers: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                avatarUrl: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        res.status(201).json(projectWithMembers);
     }
     catch (error: unknown) {
         res.status(500).json({ message: "Something went wrong, Please try again later" });

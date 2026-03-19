@@ -9,12 +9,9 @@ export function signAccessToken(userID: number, globalRole: string): string {
 export function signRefreshToken(userID: number): string {
     return jwt.sign({ userID }, REFRESH_SECRET, { expiresIn: '7d' });
 }
-export function verifyAccessToken(token: string): {
-    userID: number,
-    globalRole: string
-} {
-    return jwt.verify(token, ACCESS_SECRET) as {
-        userID: number,
-        globalRole: string
-    };
+export function verifyAccessToken(token: string): { userID: number; globalRole: string } {
+    return jwt.verify(token, ACCESS_SECRET) as { userID: number; globalRole: string };
+}
+export function verifyRefreshToken(token: string): { userID: number } {
+    return jwt.verify(token, REFRESH_SECRET) as { userID: number };
 }

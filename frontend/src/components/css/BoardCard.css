@@ -1,0 +1,109 @@
+/* BoardCard.css */
+
+.board-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  aspect-ratio: 1 / 1;
+  min-width: 160px;
+  max-width: 220px;
+}
+
+.board-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: hsl(var(--board-hue), 70%, 60%, 0.4);
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px hsl(var(--board-hue), 70%, 60%, 0.2) inset;
+}
+
+.board-card:focus-visible {
+  outline: 2px solid hsl(var(--board-hue), 70%, 60%);
+  outline-offset: 4px;
+}
+
+/* Top accent glow bar */
+.board-card__accent {
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--board-hue), 70%, 55%),
+    hsl(calc(var(--board-hue) + 40), 70%, 60%)
+  );
+  opacity: 0.85;
+}
+
+.board-card__body {
+  padding: 20px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+/* Kanban icon with accent colour */
+.board-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: hsl(var(--board-hue), 60%, 50%, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--board-hue), 70%, 65%);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.board-card:hover .board-card__icon {
+  background: hsl(var(--board-hue), 60%, 50%, 0.2);
+}
+
+.board-card__name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f8f8f8;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  /* clamp to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+}
+
+.board-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: auto;
+}
+
+/* Arrow appears on hover at bottom-right */
+.board-card__arrow {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  color: hsl(var(--board-hue), 70%, 65%);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+}
+
+.board-card:hover .board-card__arrow {
+  opacity: 1;
+  transform: translateX(0);
+}

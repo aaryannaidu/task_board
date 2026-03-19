@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect } from "react";
 
-const backendUrl = "http://localhost:3000";
-
 // Types based on the backend schema from project.md
 export interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
   avatarUrl?: string;
@@ -55,12 +53,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
-    // TODO: Verify the existing access token/session with the backend
-    // fetch('/api/users/me')
-    //   .then(user => dispatch({ type: "LOGIN", payload: user }))
-    //   .catch(() => dispatch({ type: "LOGOUT" }))
-    //   .finally(() => dispatch({ type: "SET_LOADING", payload: false }));
-    dispatch({ type: "SET_LOADING", payload: false }); // Placeholder
+    // Try to restore session using the existing access token cookie.
+    // If the access token is expired, the /api/auth/me call returns 401.
+    // We then attempt a silent refresh via /api/auth/refresh (which uses the
+    // refresh token cookie) and retry /api/auth/me once.
+    async function restoreSession() {
+      try {
+        let res = await fetch("/api/auth/me", { credentials: "include" });
+
+        if (res.status === 401) {
+          // Access token expired — try to silently refresh it
+          const refreshRes = await fetch("/api/auth/refresh", {
+            method: "POST",
+            credentials: "include",
+          });
+
+          if (!refreshRes.ok) {
+            // Refresh token also expired/revoked — user must log in again
+            dispatch({ type: "LOGOUT" });
+            return;
+          }
+
+          // Retry /me with the fresh access token
+          res = await fetch("/api/auth/me", { credentials: "include" });
+        }
+
+        if (res.ok) {
+          const user = await res.json() as User;
+          dispatch({ type: "LOGIN", payload: user });
+        } else {
+          dispatch({ type: "LOGOUT" });
+        }
+      } catch {
+        dispatch({ type: "LOGOUT" });
+      }
+    }
+
+    void restoreSession();
   }, []);
 
   return (

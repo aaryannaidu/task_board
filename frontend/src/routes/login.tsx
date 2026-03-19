@@ -33,7 +33,7 @@ const Login = () => {
             localStorage.setItem("user", JSON.stringify(data.user));
 
             // Redirect to dashboard
-            navigate("/");
+            navigate("/dashboard");
         } catch (error: any) {
             setError(error.message || "An error occurred");
         } finally {
@@ -78,7 +78,7 @@ const Login = () => {
                 </form>
 
                 <div className="auth-footer">
-                    Don't have an account? 
+                    Don't have an account?
                     <Link to="/register">Create one</Link>
                 </div>
             </div>
