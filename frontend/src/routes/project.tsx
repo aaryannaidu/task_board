@@ -1,6 +1,13 @@
-import React, { useEffect, useReducer } from "react";
+import React, { useEffect, useReducer, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getProjectDetails } from "../utils/ProjectApi";
+import { 
+  getProjectDetails, 
+  updateProject, 
+  archiveProject, 
+  addMember, 
+  changeMemberRole, 
+  removeMember 
+} from "../utils/ProjectApi";
 import { useAuth } from "../contexts/AuthContext";
 import BoardCard from "../components/BoardCard";
 import type { Project, ProjectRole } from "../utils/types";
@@ -18,7 +25,7 @@ type Action =
   | { type: "FETCH_OK"; project: Project }
   | { type: "FETCH_ERROR"; message: string };
 
-function reducer(state: State, action: Action): State {
+function reducer(_state: State, action: Action): State {
   switch (action.type) {
     case "FETCH_START":  return { status: "loading" };
     case "FETCH_OK":     return { status: "ok", project: action.project };
@@ -56,10 +63,29 @@ const ProjectPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { state: authState } = useAuth();
+  const [editMember, setEditMember] = useState<{ id: number, name: string, role: ProjectRole } | null>(null);
 
   const [state, dispatch] = useReducer(reducer, { status: "loading" });
-
   const projectId = id ? parseInt(id, 10) : NaN;
+
+  // ─── Modals State ─────────────────────────────────────────────────────────
+  const [showSettings, setShowSettings] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+
+  const [settingsForm, setSettingsForm] = useState({ name: "", description: "" });
+  const [addMemberForm, setAddMemberForm] = useState({ email: "", role: "MEMBER" as ProjectRole });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Sync settings form when project loaded
+  useEffect(() => {
+    if (state.status === "ok") {
+      setSettingsForm({ 
+        name: state.project.name, 
+        description: state.project.description || "" 
+      });
+    }
+  }, [state.status, state.status === "ok" ? state.project.name : null]);
 
   // ─── Fetch project details ─────────────────────────────────────────────────
 
@@ -82,6 +108,103 @@ const ProjectPage: React.FC = () => {
   function myRole(project: Project): ProjectRole | null {
     if (!authState.user) return null;
     return project.projectMembers.find((pm) => pm.userID === authState.user!.id)?.role ?? null;
+  }
+
+  // ─── Admin Actions ──────────────────────────────────────────────────────────
+
+  async function handleUpdateProject(e: React.FormEvent) {
+    e.preventDefault();
+    if (!settingsForm.name.trim()) return;
+    setIsProcessing(true);
+    setActionError(null);
+    try {
+      const updated = await updateProject(projectId, { 
+        name: settingsForm.name, 
+        description: settingsForm.description 
+      });
+      // Merge boards & members back natively since update API returns bare project
+      if (state.status === "ok") {
+        updated.boards = state.project.boards;
+        updated.projectMembers = state.project.projectMembers;
+      }
+      dispatch({ type: "FETCH_OK", project: updated });
+      setShowSettings(false);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to update project");
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  async function handleToggleArchive() {
+    setIsProcessing(true);
+    setActionError(null);
+    try {
+      const { project: updated } = await archiveProject(projectId);
+      if (state.status === "ok") {
+        updated.boards = state.project.boards;
+        updated.projectMembers = state.project.projectMembers;
+      }
+      dispatch({ type: "FETCH_OK", project: updated });
+      setShowSettings(false);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to archive project");
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  async function handleAddMember(e: React.FormEvent) {
+    e.preventDefault();
+    if (!addMemberForm.email.trim()) {
+      setActionError("Email address is required");
+      return;
+    }
+    
+    setIsProcessing(true);
+    setActionError(null);
+    try {
+      await addMember(projectId, { email: addMemberForm.email.trim(), role: addMemberForm.role });
+      const updatedParams = await getProjectDetails(projectId);
+      dispatch({ type: "FETCH_OK", project: updatedParams });
+      setShowAddMember(false);
+      setAddMemberForm({ email: "", role: "MEMBER" });
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to add member");
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  async function handleRoleChange(userId: number, newRole: ProjectRole) {
+    setIsProcessing(true);
+    setActionError(null);
+    try {
+      await changeMemberRole(projectId, userId, { role: newRole });
+      const updated = await getProjectDetails(projectId);
+      dispatch({ type: "FETCH_OK", project: updated });
+      setEditMember(null);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to change role");
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  async function handleRemoveMember(userId: number) {
+    if (!window.confirm("Are you sure you want to remove this member?")) return;
+    setIsProcessing(true);
+    setActionError(null);
+    try {
+      await removeMember(projectId, userId);
+      const updated = await getProjectDetails(projectId);
+      dispatch({ type: "FETCH_OK", project: updated });
+      setEditMember(null);
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to remove member");
+    } finally {
+      setIsProcessing(false);
+    }
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -166,6 +289,23 @@ const ProjectPage: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                {currentRole === "ADMIN" && (
+                  <button 
+                    className="btn btn--secondary btn--small"
+                    onClick={() => {
+                        setSettingsForm({ name: project.name, description: project.description || "" });
+                        setActionError(null);
+                        setShowSettings(true);
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    Settings
+                  </button>
+                )}
               </div>
             </header>
 
@@ -212,6 +352,17 @@ const ProjectPage: React.FC = () => {
                     Members
                     <span className="section-count">{members.length}</span>
                   </h2>
+                  {currentRole === "ADMIN" && (
+                    <button 
+                      className="btn btn--secondary btn--small" 
+                      onClick={() => {
+                          setActionError(null);
+                          setShowAddMember(true);
+                      }}
+                    >
+                        + Add Member
+                    </button>
+                  )}
                 </div>
 
                 <div className="members-list">
@@ -237,9 +388,26 @@ const ProjectPage: React.FC = () => {
                           <span className="member-row__name">{pm.user.name}</span>
                           <span className="member-row__email">{pm.user.email}</span>
                         </div>
+
                         <span className={`badge ${roleBadgeClass(pm.role)}`}>
                           {roleLabel(pm.role)}
                         </span>
+
+                        {currentRole === "ADMIN" && pm.userID !== authState.user?.id && (
+                           <button 
+                             className="btn btn--secondary btn--small ml-2"
+                             onClick={() => {
+                               setActionError(null);
+                               setEditMember({ id: pm.userID, name: pm.user.name, role: pm.role });
+                             }}
+                           >
+                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                               <path d="M12 20h9"></path>
+                               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                             </svg>
+                             Edit
+                           </button>
+                        )}
                       </div>
                     );
                   })}
@@ -247,9 +415,190 @@ const ProjectPage: React.FC = () => {
               </section>
 
             </main>
+
+            {/* ── Settings Modal ── */}
+            {showSettings && (
+              <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && setShowSettings(false)}>
+                <div className="modal">
+                  <h2 className="modal__title">Project Settings</h2>
+                  <button className="modal__close" onClick={() => setShowSettings(false)}>✕</button>
+
+                  <form className="form" onSubmit={handleUpdateProject}>
+                    {actionError && <div className="form__error">{actionError}</div>}
+
+                    <div className="form__group">
+                      <label htmlFor="edit-name">Project Name</label>
+                      <input
+                        id="edit-name"
+                        type="text"
+                        className="input"
+                        value={settingsForm.name}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
+                        required
+                        disabled={isProcessing}
+                      />
+                    </div>
+
+                    <div className="form__group">
+                      <label htmlFor="edit-desc">Description (Optional)</label>
+                      <textarea
+                        id="edit-desc"
+                        className="input"
+                        value={settingsForm.description}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, description: e.target.value })}
+                        disabled={isProcessing}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="modal__actions">
+                      <button type="button" className="btn btn--secondary" onClick={() => setShowSettings(false)} disabled={isProcessing}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn btn--primary" disabled={isProcessing}>
+                        Save Changes
+                      </button>
+                    </div>
+                  </form>
+
+                  <hr className="modal-divider" />
+                  
+                  <div className="modal-danger-zone">
+                    <h3 className="danger-title">Danger Zone</h3>
+                    <p className="danger-desc">Archiving a project hides it from the main dashboard but retains all its data. It can be unarchived later.</p>
+                    <button 
+                      className="btn action-btn-danger" 
+                      onClick={handleToggleArchive} 
+                      disabled={isProcessing}
+                    >
+                      {project.archived ? "Unarchive Project" : "Archive Project"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Add Member Modal ── */}
+            {showAddMember && (
+              <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && setShowAddMember(false)}>
+                <div className="modal">
+                  <h2 className="modal__title">Add Member</h2>
+                  <button className="modal__close" onClick={() => setShowAddMember(false)}>✕</button>
+
+                  <form className="form" onSubmit={handleAddMember}>
+                    {actionError && <div className="form__error">{actionError}</div>}
+
+                    <p className="form-info">Enter the email address of the person you want to invite.</p>
+
+                    <div className="form__group">
+                      <label htmlFor="add-user-email">Email Address</label>
+                      <input
+                        id="add-user-email"
+                        type="email"
+                        className="input"
+                        placeholder="user@example.com"
+                        value={addMemberForm.email}
+                        onChange={(e) => setAddMemberForm({ ...addMemberForm, email: e.target.value })}
+                        required
+                        disabled={isProcessing}
+                      />
+                    </div>
+
+                    <div className="form__group">
+                      <label htmlFor="add-role">Role</label>
+                      <select
+                        id="add-role"
+                        className="input"
+                        value={addMemberForm.role}
+                        onChange={(e) => setAddMemberForm({ ...addMemberForm, role: e.target.value as ProjectRole })}
+                        disabled={isProcessing}
+                      >
+                        <option value="ADMIN">Admin</option>
+                        <option value="MEMBER">Member</option>
+                        <option value="VIEWER">Viewer</option>
+                      </select>
+                    </div>
+
+                    <div className="modal__actions">
+                      <button type="button" className="btn btn--secondary" onClick={() => setShowAddMember(false)} disabled={isProcessing}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn btn--primary" disabled={isProcessing}>
+                        Add User
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
           </>
         );
       })()}
+
+      {/* ── Edit Member Modal ── */}
+      {editMember && (
+        <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && setEditMember(null)}>
+          <div className="modal">
+            <h2 className="modal__title">Edit Member</h2>
+            <button className="modal__close" onClick={() => setEditMember(null)}>✕</button>
+
+            <div className="form">
+              {actionError && <div className="form__error">{actionError}</div>}
+              
+              <p className="form-info">Update role for <strong>{editMember.name}</strong></p>
+
+              <div className="form__group">
+                <label>Role</label>
+                <select
+                  className="input"
+                  value={editMember.role}
+                  onChange={(e) => setEditMember({ ...editMember, role: e.target.value as ProjectRole })}
+                  disabled={isProcessing}
+                >
+                  <option value="ADMIN">Admin</option>
+                  <option value="MEMBER">Member</option>
+                  <option value="VIEWER">Viewer</option>
+                </select>
+              </div>
+
+              <div className="modal__actions">
+                <button 
+                  type="button" 
+                  className="btn btn--secondary" 
+                  onClick={() => setEditMember(null)} 
+                  disabled={isProcessing}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn--primary" 
+                  onClick={() => handleRoleChange(editMember.id, editMember.role)} 
+                  disabled={isProcessing}
+                >
+                  Save Role
+                </button>
+              </div>
+            </div>
+
+            <hr className="modal-divider" />
+            
+            <div className="modal-danger-zone">
+              <h3 className="danger-title">Remove Member</h3>
+              <p className="danger-desc">This will immediately revoke their access to the project. They will not be able to view or edit tasks.</p>
+              <button 
+                className="btn action-btn-danger" 
+                onClick={() => handleRemoveMember(editMember.id)}
+                disabled={isProcessing}
+              >
+                Remove from Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

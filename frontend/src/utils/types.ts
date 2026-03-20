@@ -24,7 +24,22 @@ export interface ProjectMember {
   user: Pick<User, "id" | "name" | "email" | "avatarUrl">;
 }
 
-// ─── Board ────────────────────────────────────────────────────────────────────
+// ─── Board & Related ────────────────────────────────────────────────────────────
+
+export interface Column {
+  id: number;
+  name: string;
+  order: number;
+  wipLimit: number | null;
+  boardID: number;
+}
+
+export interface WorkTransition {
+  id: number;
+  boardID: number;
+  fromStatus: string;
+  toStatus: string;
+}
 
 export interface Board {
   id: number;
@@ -32,6 +47,8 @@ export interface Board {
   projectID: number;
   createdAt: string;
   updatedAt: string;
+  columns?: Column[];
+  transitions?: WorkTransition[];
 }
 
 // ─── Project ──────────────────────────────────────────────────────────────────
@@ -60,12 +77,37 @@ export interface UpdateProjectBody {
 }
 
 export interface AddMemberBody {
-  userID: number;
+  email: string;
   role: ProjectRole;
 }
 
 export interface ChangeRoleBody {
   role: ProjectRole;
+}
+
+export interface CreateBoardBody {
+  name: string;
+}
+
+export interface CreateColumnBody {
+  name: string;
+  order?: number;
+  wipLimit?: number;
+}
+
+export interface UpdateColumnBody {
+  name?: string;
+  order?: number;
+  WipLimit?: number; // Matches the backend expected spelling
+}
+
+export interface ReorderColumnsBody {
+  columns: { id: number; order: number }[];
+}
+
+export interface AddTransitionBody {
+  fromStatus: string;
+  toStatus: string;
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
