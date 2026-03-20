@@ -168,7 +168,7 @@ export async function archiveproject(req: Request, res: Response): Promise<void>
 export async function addmember(req: Request, res: Response): Promise<void> {
     try {
         const projectid = parseInt(req.params.id as string);
-        const { userID, role } = req.body;
+        const { email, role } = req.body;
 
         const project = await prisma.project.findUnique({
             where: { id: projectid }
@@ -191,7 +191,7 @@ export async function addmember(req: Request, res: Response): Promise<void> {
             return;
         }
         const userToAdd = await prisma.user.findUnique({
-            where: { id: userID }
+            where: { email:email }
         });
         if (!userToAdd) {
             res.status(404).json({ message: "User not found" });
@@ -201,7 +201,7 @@ export async function addmember(req: Request, res: Response): Promise<void> {
         const existingMember = await prisma.projectMember.findUnique({
             where: {
                 userID_projectID: {
-                    userID: userID,
+                    userID: userToAdd.id,
                     projectID: projectid
                 }
             }
@@ -212,7 +212,7 @@ export async function addmember(req: Request, res: Response): Promise<void> {
         }
         const addedUser = await prisma.projectMember.create({
             data: {
-                userID: userID,
+                userID: userToAdd.id,
                 projectID: projectid,
                 role: role
             }
