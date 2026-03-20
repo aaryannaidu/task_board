@@ -192,7 +192,7 @@ export async function addmember(req: Request, res: Response): Promise<void> {
         }
 
         const userToAdd = await prisma.user.findUnique({
-            where: { id: userID }
+            where: { email: email }
         });
         if (!userToAdd) {
             res.status(404).json({ message: "User with this email not found" });
