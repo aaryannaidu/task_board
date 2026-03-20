@@ -190,11 +190,12 @@ export async function addmember(req: Request, res: Response): Promise<void> {
             res.status(403).json({ message: "Only project admins can add members" });
             return;
         }
+
         const userToAdd = await prisma.user.findUnique({
-            where: { email:email }
+            where: { id: userID }
         });
         if (!userToAdd) {
-            res.status(404).json({ message: "User not found" });
+            res.status(404).json({ message: "User with this email not found" });
             return;
         }
 

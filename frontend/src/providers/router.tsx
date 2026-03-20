@@ -5,6 +5,7 @@ import Register from "../routes/register";
 import Login from "../routes/login";
 import Dashboard from "../routes/dashboard";
 import ProjectPage from "../routes/project";
+import BoardPage from "../routes/board";
 
 const router = createBrowserRouter([
     {
@@ -30,6 +31,10 @@ const router = createBrowserRouter([
     {
         path: "/projects/:id",
         element: <ProjectPage />,
+    },
+    {
+        path: "/projects/:id/boards/:boardId",
+        element: <BoardPage />,
     },
 ]);
 
