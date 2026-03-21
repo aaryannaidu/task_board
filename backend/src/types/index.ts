@@ -17,7 +17,9 @@ export type CreateTaskBody = {
     type: 'STORY' | 'BUG' | 'TASK',
     parentID?: number,
     priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL',
-    dueDate?: string
+    dueDate?: string,
+    description?: string,
+    assigneeId?: number
 }
 export type UpdateTaskBody = {
     title?: string,

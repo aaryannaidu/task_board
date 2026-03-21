@@ -290,3 +290,36 @@ export async function removetransition(req:Request,res:Response):Promise<void>{
         res.status(500).json({error:"Server error, please try again"})
     }
 }
+
+export async function updateboard(req:Request,res:Response):Promise<void>{
+    try{
+        const projectid = parseInt(req.params.projectid as string);
+        const boardid = parseInt(req.params.boardid as string);
+
+        const member = await prisma.projectMember.findUnique({
+            where:{userID_projectID:{
+                userID:req.user!.userID,
+                projectID:projectid
+            }}
+        });
+        if(req.user?.globalRole !== 'ADMIN' && member?.role !== 'ADMIN'){
+            res.status(403).json({error:"Only admins can update boards"});
+            return;
+        }
+
+        const { name } = req.body;
+        if (!name) {
+            res.status(400).json({ error: "Board name is required" });
+            return;
+        }
+
+        const board = await prisma.board.update({
+            where: { id: boardid },
+            data: { name }
+        });
+        res.status(200).json(board);
+    }
+    catch(error:unknown){
+        res.status(500).json({error:"Server error, please try again"});
+    }
+}

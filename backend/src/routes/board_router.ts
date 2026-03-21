@@ -1,12 +1,13 @@
 import {Router} from 'express';
 import { createboard,getboards,deleteboard,createcolumn,updatecolumn
-    ,deletecolumn,reordercolumns,addtransition,removetransition} from '../controllers/boardController';
+    ,deletecolumn,reordercolumns,addtransition,removetransition,updateboard} from '../controllers/boardController';
 
 const router = Router({ mergeParams: true });
 
 router.post('/',createboard)
 router.get('/',getboards)
 router.delete('/:boardid',deleteboard)
+router.patch('/:boardid',updateboard)
 
 router.post('/:boardid/columns',createcolumn)
 router.patch('/:boardid/columns/reorder',reordercolumns)

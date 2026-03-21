@@ -8,6 +8,7 @@ import {
   changeMemberRole, 
   removeMember 
 } from "../utils/ProjectApi";
+import { createBoard, createColumn } from "../utils/BoardApi";
 import { useAuth } from "../contexts/AuthContext";
 import BoardCard from "../components/BoardCard";
 import type { Project, ProjectRole } from "../utils/types";
@@ -71,9 +72,14 @@ const ProjectPage: React.FC = () => {
   // ─── Modals State ─────────────────────────────────────────────────────────
   const [showSettings, setShowSettings] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [showCreateBoard, setShowCreateBoard] = useState(false);
 
   const [settingsForm, setSettingsForm] = useState({ name: "", description: "" });
   const [addMemberForm, setAddMemberForm] = useState({ email: "", role: "MEMBER" as ProjectRole });
+  const [createBoardForm, setCreateBoardForm] = useState({
+    name: "",
+    columns: ["To Do", "In Progress", "In Review", "Done"]
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -207,6 +213,41 @@ const ProjectPage: React.FC = () => {
     }
   }
 
+  async function handleCreateBoard(e: React.FormEvent) {
+    e.preventDefault();
+    if (!createBoardForm.name.trim()) {
+      setActionError("Board name is required");
+      return;
+    }
+    if (createBoardForm.columns.some(c => !c.trim())) {
+      setActionError("All column names must be filled");
+      return;
+    }
+
+    setIsProcessing(true);
+    setActionError(null);
+    try {
+      const newBoard = await createBoard(projectId, { name: createBoardForm.name.trim() });
+      
+      for (let i = 0; i < createBoardForm.columns.length; i++) {
+        await createColumn(projectId, newBoard.id, { 
+          name: createBoardForm.columns[i].trim(),
+          order: i + 1 
+        });
+      }
+      
+      const updated = await getProjectDetails(projectId);
+      dispatch({ type: "FETCH_OK", project: updated });
+      
+      setShowCreateBoard(false);
+      setCreateBoardForm({ name: "", columns: ["To Do", "In Progress", "In Review", "Done"] });
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Failed to create board");
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -324,6 +365,17 @@ const ProjectPage: React.FC = () => {
                     Boards
                     <span className="section-count">{boards.length}</span>
                   </h2>
+                  {currentRole === "ADMIN" && (
+                    <button 
+                      className="btn btn--secondary btn--small" 
+                      onClick={() => {
+                          setActionError(null);
+                          setShowCreateBoard(true);
+                      }}
+                    >
+                        + Create Board
+                    </button>
+                  )}
                 </div>
 
                 {boards.length === 0 ? (
@@ -525,6 +577,90 @@ const ProjectPage: React.FC = () => {
                       </button>
                       <button type="submit" className="btn btn--primary" disabled={isProcessing}>
                         Add User
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* ── Create Board Modal ── */}
+            {showCreateBoard && (
+              <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && setShowCreateBoard(false)}>
+                <div className="modal">
+                  <h2 className="modal__title">Create Board</h2>
+                  <button className="modal__close" onClick={() => setShowCreateBoard(false)}>✕</button>
+
+                  <form className="form" onSubmit={handleCreateBoard}>
+                    {actionError && <div className="form__error">{actionError}</div>}
+                    
+                    <div className="form__group">
+                      <label htmlFor="board-name">Board Name</label>
+                      <input
+                        id="board-name"
+                        type="text"
+                        className="input"
+                        placeholder="e.g. Sprint Tracking"
+                        value={createBoardForm.name}
+                        onChange={(e) => setCreateBoardForm({ ...createBoardForm, name: e.target.value })}
+                        required
+                        disabled={isProcessing}
+                      />
+                    </div>
+
+                    <div className="form__group">
+                      <label>How do you track work?</label>
+                      <p className="form-info" style={{marginTop: '0.25rem'}}>As you complete work, it moves through these statuses.</p>
+                      
+                      <div className="column-inputs" style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem'}}>
+                        {createBoardForm.columns.map((col, idx) => (
+                          <div key={idx} style={{display: 'flex', gap: '0.5rem'}}>
+                            <input
+                              type="text"
+                              className="input"
+                              value={col}
+                              onChange={(e) => {
+                                const newCols = [...createBoardForm.columns];
+                                newCols[idx] = e.target.value;
+                                setCreateBoardForm({ ...createBoardForm, columns: newCols });
+                              }}
+                              required
+                              disabled={isProcessing}
+                            />
+                            <button 
+                              type="button" 
+                              className="btn btn--secondary btn--icon"
+                              style={{padding: '0 0.75rem'}}
+                              onClick={() => {
+                                 const newCols = createBoardForm.columns.filter((_, i) => i !== idx);
+                                 setCreateBoardForm({ ...createBoardForm, columns: newCols });
+                              }}
+                              disabled={isProcessing || createBoardForm.columns.length <= 1}
+                              aria-label="Remove status"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                        
+                        <button 
+                          type="button" 
+                          className="btn btn--secondary" 
+                          style={{alignSelf: 'flex-start', marginTop: '0.5rem', border: 'none', background: 'transparent', paddingLeft: 0, fontWeight: 600}}
+                          onClick={() => setCreateBoardForm(prev => ({ ...prev, columns: [...prev.columns, "New Status"] }))}
+                          disabled={isProcessing}
+                        >
+                          + Add status
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="modal__actions">
+                      <button type="button" className="btn btn--secondary" onClick={() => setShowCreateBoard(false)} disabled={isProcessing}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn btn--primary" disabled={isProcessing}>
+                        Finish
                       </button>
                     </div>
                   </form>

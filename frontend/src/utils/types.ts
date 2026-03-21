@@ -89,6 +89,10 @@ export interface CreateBoardBody {
   name: string;
 }
 
+export interface UpdateBoardBody {
+  name: string;
+}
+
 export interface CreateColumnBody {
   name: string;
   order?: number;
@@ -98,7 +102,7 @@ export interface CreateColumnBody {
 export interface UpdateColumnBody {
   name?: string;
   order?: number;
-  WipLimit?: number; // Matches the backend expected spelling
+  WipLimit?: number | null; // Matches the backend expected spelling
 }
 
 export interface ReorderColumnsBody {
@@ -116,4 +120,50 @@ export interface ApiResponse<T> {
   message?: string;
   data?: T;
   error?: string;
+}
+
+export interface Task {
+  id: number;
+  title: string;
+  description?: string;
+  type: IssueType;
+  priority: Priority;
+  status: string;
+  dueDate?: string;
+  createdAt: string;
+  updatedAt: string;
+  parentID?: number;
+  columnID: number;
+  assigneeID?: number;
+  reporterID: number;
+  resolveAt?: string;
+  closedAt?: string;
+  assignee?: Pick<User, "id" | "name" | "email" | "avatarUrl">;
+  reporter?: Pick<User, "id" | "name" | "email">;
+  children?: Task[];
+  _count?: { comments: number };
+}
+
+export interface CreateTaskBody {
+  title: string;
+  columnId: number;
+  type: IssueType;
+  parentID?: number;
+  priority: Priority;
+  dueDate?: string;
+  description?: string;
+  assigneeId?: number;
+}
+
+export interface UpdateTaskBody {
+  title?: string;
+  description?: string;
+  status?: string;
+  prioroity?: Priority;
+  assigneeId?: number;
+  dueDate?: string;
+}
+
+export interface MoveTaskBody {
+  columnId: number;
 }
