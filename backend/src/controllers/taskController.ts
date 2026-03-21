@@ -69,6 +69,16 @@ export async function createtask(req:Request,res:Response):Promise<void>{
                     newValue: assigneeId.toString()
                 }
             });
+            if(assigneeId !== req.user!.userID){
+                await prisma.notification.create({
+                    data: {
+                        userID: assigneeId,
+                        taskID: task.id,
+                        type: "TASK_ASSIGNED",
+                        message: `You have been assigned to a new task: ${task.title}`
+                    }
+                });
+            }
         }
         res.status(201).json(task);
 
@@ -205,6 +215,16 @@ export async function updatetask(req:Request,res:Response):Promise<void>{
                     newValue:assigneeId?.toString() ?? 'none'
                 }
             });
+            if(assigneeId && assigneeId !== req.user!.userID){
+                await prisma.notification.create({
+                    data: {
+                        userID: assigneeId,
+                        taskID: taskid,
+                        type: "TASK_ASSIGNED",
+                        message: `You have been assigned to task: ${task?.title}`
+                    }
+                });
+            }
         }
         const updated= await prisma.task.update({
             where:{id:taskid},
@@ -278,6 +298,22 @@ export async function movetask(req:Request,res:Response):Promise<void>{
                 newValue:targetcolumn.name
             }
         });
+        
+        const notifyUsers = new Set<number>();
+        if (task.assigneeID && task.assigneeID !== req.user!.userID) notifyUsers.add(task.assigneeID);
+        if (task.reporterID && task.reporterID !== req.user!.userID) notifyUsers.add(task.reporterID);
+        
+        for (const uid of notifyUsers) {
+            await prisma.notification.create({
+                data: {
+                    userID: uid,
+                    taskID: taskid,
+                    type: "STATUS_CHANGE",
+                    message: `Status changed to ${targetcolumn.name} for task: ${task.title}`
+                }
+            });
+        }
+
         const updated= await prisma.task.update({
             where:{id:taskid},
             data:{
