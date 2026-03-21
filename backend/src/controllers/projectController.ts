@@ -68,7 +68,6 @@ export async function createProject(req: Request, res: Response): Promise<void> 
             }
         });
 
-        // Re-fetch the project so the creator's membership is included in the response
         const projectWithMembers = await prisma.project.findUnique({
             where: { id: newproject.id },
             include: {

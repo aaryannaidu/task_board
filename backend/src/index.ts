@@ -24,6 +24,10 @@ app.get('/', (_req: Request, res: Response) => {
     res.json({ message: 'Server is running', status: 'ok' });
 });
 app.use(errorHandler);
-app.listen(PORT, () => {
+
+export default app;
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-});
+  });
+}
