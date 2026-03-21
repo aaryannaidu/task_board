@@ -8,6 +8,7 @@ import type {
   UpdateColumnBody,
   ReorderColumnsBody,
   AddTransitionBody,
+  UpdateBoardBody
 } from "./types";
 
 const getBase = (projectId: number) => `/api/projects/${projectId}/boards`;
@@ -37,6 +38,23 @@ export async function createBoard(projectId: number, body: CreateBoardBody): Pro
   if (!res.ok) {
     const data = await res.json().catch(() => ({})) as { error?: string, message?: string };
     throw new Error(data.error ?? data.message ?? `Failed to create board (${res.status})`);
+  }
+
+  return res.json() as Promise<Board>;
+}
+
+// ─── PATCH /api/projects/:projectId/boards/:boardId ────────────────────────
+
+export async function updateBoard(projectId: number, boardId: number, body: UpdateBoardBody): Promise<Board> {
+  const res = await fetchWithAuth(`${getBase(projectId)}/${boardId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { error?: string, message?: string };
+    throw new Error(data.error ?? data.message ?? `Failed to update board (${res.status})`);
   }
 
   return res.json() as Promise<Board>;

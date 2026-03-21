@@ -5,7 +5,7 @@ import { CreateTaskBody,UpdateTaskBody,MoveTaskBody} from '../types/index';
 export async function createtask(req:Request,res:Response):Promise<void>{
     try{
         const projectid= parseInt(req.params.projectid as string);
-        const{ title,columnId,type,parentID,priority,dueDate}= req.body as CreateTaskBody;
+        const{ title,columnId,type,parentID,priority,dueDate,description,assigneeId}= req.body as CreateTaskBody;
         if(!title || !columnId || !type){
             res.status(400).json({error:"Title, Column and Type are Required"})
             return;
@@ -46,6 +46,8 @@ export async function createtask(req:Request,res:Response):Promise<void>{
                 reporterID:req.user!.userID,
                 parentID:parentID ?? null,
                 dueDate:dueDate ? new Date(dueDate) :null,
+                description: description ?? null,
+                assigneeID: assigneeId ?? null,
                 status:column.name
             }
         });
