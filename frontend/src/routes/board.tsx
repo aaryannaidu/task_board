@@ -139,10 +139,14 @@ const BoardPage: React.FC = () => {
     }
   };
 
-  const handleOpenCreateTaskModal = (columnId: number) => {
+  const handleOpenCreateTaskModal = (columnId: number, defaultType: "TASK" | "STORY" = "TASK") => {
+    if (!columnId) {
+      alert("Please create a column first.");
+      return;
+    }
     setCreateTaskColId(columnId);
     setTaskTitle("");
-    setTaskType("TASK");
+    setTaskType(defaultType);
     setTaskPriority("MEDIUM");
     setTaskParentId("");
     setTaskAssigneeId("");
@@ -265,6 +269,10 @@ const BoardPage: React.FC = () => {
                   )}
                 </div>
                 <div className="board-page__actions">
+                    <button className="btn btn--secondary btn--small" onClick={() => handleOpenCreateTaskModal(columns[0]?.id || 0, "STORY")} style={{marginRight: '8px'}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '4px'}}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+                      Create Story
+                    </button>
                     <button className="btn btn--primary btn--small" onClick={handleCreateColumn}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}>
                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -276,8 +284,32 @@ const BoardPage: React.FC = () => {
               </div>
             </header>
 
-            <main className="board-page__content">
-               <div className="board-canvas">
+            <main className="board-page__content" style={{ flexDirection: 'column' }}>
+                 {/* Stories Section */}
+                 {tasks.filter(t => t.type === "STORY").length > 0 && (
+                   <div className="stories-container" style={{ padding: '1.2rem 2rem 0.8rem 2rem', backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
+                     <h3 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', color: 'var(--text-muted)' }}>STORIES</h3>
+                     <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '8px' }}>
+                       {tasks.filter(t => t.type === "STORY").map(story => (
+                         <div key={story.id} style={{ 
+                           backgroundColor: 'var(--bg-card, #2d303e)', 
+                           padding: '12px 16px', 
+                           borderRadius: '8px', 
+                           minWidth: '250px', 
+                           borderLeft: '3px solid #3b82f6',
+                           boxShadow: '0 2px 4px rgba(0,0,0,0.3)' 
+                         }}>
+                           <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.95rem' }}>{story.title}</div>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
+
+                 {columns.length > 0 && (
+                   <h3 style={{ margin: '24px 2rem 0 2rem', fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', color: 'var(--text-muted)' }}>COLUMNS</h3>
+                 )}
+               <div className="board-canvas" style={{ paddingTop: columns.length > 0 ? '16px' : undefined }}>
                  {columns.length === 0 ? (
                    <div className="board-empty-state">
                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -311,7 +343,7 @@ const BoardPage: React.FC = () => {
                        >
                          <ColumnCard 
                            column={col} 
-                           tasks={tasks.filter((t) => t.columnID === col.id)}
+                           tasks={tasks.filter((t) => t.columnID === col.id && t.type !== "STORY")}
                            onAddTaskClick={() => handleOpenCreateTaskModal(col.id)}
                            onUpdateColumn={async (data) => {
                              try {
@@ -337,78 +369,83 @@ const BoardPage: React.FC = () => {
             </main>
             
             {createTaskModalOpen && (
-              <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="modal-content" style={{ backgroundColor: 'var(--surface)', padding: '24px', borderRadius: '8px', width: '100%', maxWidth: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <h2 style={{ fontSize: '1.2rem', margin: 0 }}>Create Issue</h2>
+              <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="modal-content" style={{ backgroundColor: '#111319', border: '1px solid #2d303e', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', color: '#f1f1f1', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h2 style={{ fontSize: '1.25rem', margin: 0, color: '#fff', fontWeight: 600 }}>Create {taskType === 'STORY' ? 'Story' : 'Issue'}</h2>
                   
                   <input 
                     className="form-input" 
-                    placeholder="Task Title"
+                    placeholder="Name"
                     value={taskTitle}
                     onChange={e => setTaskTitle(e.target.value)}
-                    style={{ width: '100%', padding: '10px', fontSize: '1rem', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px', fontSize: '1rem', boxSizing: 'border-box', backgroundColor: '#1c1e27', border: '1px solid #3a3f58', color: '#fff', borderRadius: '6px' }}
                   />
                   
-                  <div style={{ display: 'flex', gap: '16px' }}>
-                    <select 
-                      className="form-input"
-                      value={taskType}
-                      onChange={e => setTaskType(e.target.value as IssueType)}
-                      style={{ flex: 1, padding: '10px', boxSizing: 'border-box' }}
-                    >
-                      <option value="BUG">Bug</option>
-                      <option value="TASK">Task</option>
-                      <option value="STORY">Story</option>
-                    </select>
-                    
-                    <select 
-                      className="form-input"
-                      value={taskPriority}
-                      onChange={e => setTaskPriority(e.target.value as Priority)}
-                      style={{ flex: 1, padding: '10px', boxSizing: 'border-box' }}
-                    >
-                      <option value="LOW">Low</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HIGH">High</option>
-                      <option value="CRITICAL">Critical</option>
-                    </select>
-                  </div>
+                  {taskType !== 'STORY' && (
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      <select 
+                        className="form-input"
+                        value={taskType}
+                        onChange={e => setTaskType(e.target.value as IssueType)}
+                        style={{ flex: 1, padding: '12px', boxSizing: 'border-box', backgroundColor: '#1c1e27', border: '1px solid #3a3f58', color: '#fff', borderRadius: '6px' }}
+                      >
+                        <option value="BUG">Bug</option>
+                        <option value="TASK">Task</option>
+                      </select>
+                      
+                      <select 
+                        className="form-input"
+                        value={taskPriority}
+                        onChange={e => setTaskPriority(e.target.value as Priority)}
+                        style={{ flex: 1, padding: '12px', boxSizing: 'border-box', backgroundColor: '#1c1e27', border: '1px solid #3a3f58', color: '#fff', borderRadius: '6px' }}
+                      >
+                        <option value="LOW">Low</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="HIGH">High</option>
+                        <option value="CRITICAL">Critical</option>
+                      </select>
+                    </div>
+                  )}
                   
-                  <select
-                    className="form-input"
-                    value={taskParentId}
-                    onChange={e => setTaskParentId(e.target.value)}
-                    style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }}
-                  >
-                    <option value="">📖 Select Story (Optional)</option>
-                    {state.tasks.filter(t => t.type === 'STORY').map(story => (
-                      <option key={story.id} value={story.id}>📖 {story.title}</option>
-                    ))}
-                  </select>
+                  {taskType !== 'STORY' && (
+                    <select
+                      className="form-input"
+                      value={taskParentId}
+                      onChange={e => setTaskParentId(e.target.value)}
+                      style={{ width: '100%', padding: '12px', boxSizing: 'border-box', backgroundColor: '#1c1e27', border: '1px solid #3a3f58', color: '#fff', borderRadius: '6px' }}
+                    >
+                      <option value="">📖 Select Story (Optional)</option>
+                      {state.tasks.filter(t => t.type === 'STORY').map(story => (
+                        <option key={story.id} value={story.id}>📖 {story.title}</option>
+                      ))}
+                    </select>
+                  )}
                   
-                  <select
-                    className="form-input"
-                    value={taskAssigneeId}
-                    onChange={e => setTaskAssigneeId(e.target.value)}
-                    style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }}
-                  >
-                    <option value="">👤 Unassigned</option>
-                    {state.members.map(member => (
-                      <option key={member.userID} value={member.userID}>{member.user.name}</option>
-                    ))}
-                  </select>
+                  {taskType !== 'STORY' && (
+                    <select
+                      className="form-input"
+                      value={taskAssigneeId}
+                      onChange={e => setTaskAssigneeId(e.target.value)}
+                      style={{ width: '100%', padding: '12px', boxSizing: 'border-box', backgroundColor: '#1c1e27', border: '1px solid #3a3f58', color: '#fff', borderRadius: '6px' }}
+                    >
+                      <option value="">👤 Unassigned</option>
+                      {state.members.map(member => (
+                        <option key={member.userID} value={member.userID}>{member.user.name}</option>
+                      ))}
+                    </select>
+                  )}
                   
                   <textarea
                     className="form-input"
                     placeholder="Description"
                     value={taskDescription}
                     onChange={e => setTaskDescription(e.target.value)}
-                    style={{ width: '100%', padding: '10px', minHeight: '100px', resize: 'vertical', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '12px', minHeight: '100px', resize: 'vertical', boxSizing: 'border-box', backgroundColor: '#1c1e27', border: '1px solid #3a3f58', color: '#fff', borderRadius: '6px' }}
                   />
                   
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
-                    <button className="btn btn--secondary" onClick={() => setCreateTaskModalOpen(false)}>Cancel</button>
-                    <button className="btn btn--primary" onClick={handleCreateTaskSubmit}>Create</button>
+                    <button className="btn btn--secondary" style={{ backgroundColor: '#2d303e', color: '#fff', border: 'none' }} onClick={() => setCreateTaskModalOpen(false)}>Cancel</button>
+                    <button className="btn btn--primary" style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none' }} onClick={handleCreateTaskSubmit}>Create</button>
                   </div>
                 </div>
               </div>

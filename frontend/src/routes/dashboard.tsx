@@ -1,4 +1,5 @@
 import React, { useEffect, useReducer, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getProjects, createProject } from "../utils/ProjectApi";
 import { useAuth } from "../contexts/AuthContext";
 import ProjectCard from "../components/ProjectCard";
@@ -35,7 +36,8 @@ function reducer(state: State, action: Action): State {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const Dashboard: React.FC = () => {
-  const { state: authState } = useAuth();
+  const { state: authState, dispatch: dispatchAuth } = useAuth();
+  const navigate = useNavigate();
   const [state, dispatch] = useReducer(reducer, { status: "loading" });
 
   // Create-project modal state
@@ -60,9 +62,17 @@ const Dashboard: React.FC = () => {
   // Toggle show archived
   const [showArchived, setShowArchived] = useState(false);
 
+  // ─── Handle Logout ──────────────────────────────────────────────────────────
 
-
-  // ─── Fetch projects on mount ───────────────────────────────────────────────
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout error", err);
+    }
+    dispatchAuth({ type: "LOGOUT" });
+    navigate("/login");
+  }  // ─── Fetch projects on mount ───────────────────────────────────────────────
 
   useEffect(() => {
     dispatch({ type: "FETCH_START" });
@@ -310,6 +320,38 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Logout button at bottom right */}
+      <button 
+        onClick={handleLogout}
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          padding: '10px 20px',
+          borderRadius: '8px',
+          backgroundColor: 'var(--bg-card, #2d303e)',
+          color: '#ff4d4f',
+          border: '1px solid #481d1d',
+          cursor: 'pointer',
+          fontWeight: 600,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          transition: 'all 0.2s ease'
+        }}
+        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#481d1d'}
+        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--bg-card, #2d303e)'}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        Logout
+      </button>
     </div>
   );
 };
