@@ -70,7 +70,7 @@ export async function updateTask(projectId: number, taskId: number, body: Update
 
 // ─── POST /api/projects/:projectId/tasks/:taskId/move ────────────────────────
 
-export async function moveTask(projectId: number, taskId: number, body: MoveTaskBody): Promise<{ updated: Task }> {
+export async function moveTask(projectId: number, taskId: number, body: MoveTaskBody): Promise<Task> {
   const res = await fetchWithAuth(`${getBase(projectId)}/${taskId}/move`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -82,7 +82,7 @@ export async function moveTask(projectId: number, taskId: number, body: MoveTask
     throw new Error(data.error ?? data.message ?? `Failed to move task (${res.status})`);
   }
 
-  return res.json() as Promise<{ updated: Task }>;
+  return res.json() as Promise<Task>;
 }
 
 // ─── DELETE /api/projects/:projectId/tasks/:taskId ───────────────────────────

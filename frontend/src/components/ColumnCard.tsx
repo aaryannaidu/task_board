@@ -7,10 +7,24 @@ interface ColumnCardProps {
   onUpdateColumn?: (data: { name: string; WipLimit?: number | null }) => void;
   onDeleteColumn?: () => void;
   onAddTaskClick?: () => void;
+  onTaskClick?: (taskId: number) => void;
+  onTaskDrop?: (taskId: number, targetColId: number) => void;
 }
 
-const TaskCard = ({ task }: { task: Task }) => (
-  <div className="task-card">
+const TaskCard = ({ task, onClick }: { task: Task; onClick?: () => void }) => (
+  <div 
+    className="task-card" 
+    onClick={onClick} 
+    style={{ cursor: onClick ? 'pointer' : 'grab' }}
+    draggable
+    onDragStart={(e) => {
+        // Required for Firefox
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", `task-${task.id}`);
+        // Stop propagation so we don't accidentally drag the column
+        e.stopPropagation(); 
+    }}
+  >
     <div className="task-card__title">{task.title}</div>
     <div className="task-card__tags">
       <span className={`task-tag task-tag--${task.type.toLowerCase()}`}>{task.type}</span>
@@ -29,7 +43,7 @@ const TaskCard = ({ task }: { task: Task }) => (
   </div>
 );
 
-const ColumnCard: React.FC<ColumnCardProps> = ({ column, tasks = [], onUpdateColumn, onDeleteColumn, onAddTaskClick }) => {
+const ColumnCard: React.FC<ColumnCardProps> = ({ column, tasks = [], onUpdateColumn, onDeleteColumn, onAddTaskClick, onTaskClick, onTaskDrop }) => {
   const isDone = column.name.toLowerCase().includes('done');
   
   const [showOptions, setShowOptions] = useState(false);
@@ -136,8 +150,32 @@ const ColumnCard: React.FC<ColumnCardProps> = ({ column, tasks = [], onUpdateCol
           </div>
         )}
       </div>
-      <div className="column-body">
-        {tasks.map(task => <TaskCard key={task.id} task={task} />)}
+      <div 
+        className="column-body"
+        onDragOver={(e) => {
+            // Check if dragging a task
+            if (e.dataTransfer.types.includes("text/plain")) {
+                e.preventDefault(); // Necessary to allow drop inside column body
+                e.dataTransfer.dropEffect = "move";
+                e.currentTarget.style.backgroundColor = "rgba(59, 130, 246, 0.1)"; // highlight drop zone
+            }
+        }}
+        onDragLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "";
+        }}
+        onDrop={(e) => {
+            e.currentTarget.style.backgroundColor = "";
+            const data = e.dataTransfer.getData("text/plain");
+            if (data && data.startsWith("task-")) {
+                e.preventDefault();
+                e.stopPropagation();
+                const taskId = parseInt(data.replace("task-", ""), 10);
+                if (onTaskDrop) onTaskDrop(taskId, column.id);
+            }
+        }}
+        style={{ minHeight: '50px', transition: 'background-color 0.2s' }}
+      >
+        {tasks.map(task => <TaskCard key={task.id} task={task} onClick={() => onTaskClick?.(task.id)} />)}
       </div>
       <button className="add-task-btn" onClick={onAddTaskClick}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

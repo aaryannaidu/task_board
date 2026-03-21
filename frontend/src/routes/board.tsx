@@ -1,7 +1,7 @@
 import React, { useEffect, useReducer, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getBoards, updateBoard, createColumn, updateColumn, deleteColumn, reorderColumns } from "../utils/BoardApi";
-import { getTasks, createTask } from "../utils/TaskApi";
+import { getTasks, createTask, moveTask } from "../utils/TaskApi";
 import { getProjectMembers } from "../utils/ProjectApi";
 import type { Board, Column, Task, ProjectMember, IssueType, Priority } from "../utils/types";
 import ColumnCard from "../components/ColumnCard";
@@ -136,6 +136,43 @@ const BoardPage: React.FC = () => {
       await reorderColumns(projectIdNum, boardIdNum, { columns: payload });
     } catch (err) {
       alert("Failed to sync column order with server.");
+    }
+  };
+
+  const handleTaskDrop = async (taskId: number, targetColId: number) => {
+    if (state.status !== "ok") return;
+    const task = state.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    if (task.columnID === targetColId) return;
+
+    if (task.type === "STORY") {
+      alert("STORY task cannot be moved between column");
+      return;
+    }
+
+    // Backup current state for optimistic UI rollback
+    const previousTasks = [...state.tasks];
+    
+    // Optimistic UI update
+    const newTasks = state.tasks.map(t => 
+      t.id === taskId ? { ...t, columnID: targetColId } : t
+    );
+    dispatch({ type: "FETCH_OK", board: state.board, tasks: newTasks, members: state.members });
+
+    try {
+      const updatedTask = await moveTask(projectIdNum, taskId, { columnId: targetColId });
+      // Successfully moved, keep the new columnID but also use the server's exact status etc.
+      const assigneeMember = state.members.find(m => m.userID === updatedTask.assigneeID);
+      const fullTask = {
+        ...updatedTask,
+        assignee: assigneeMember ? assigneeMember.user : undefined,
+      };
+      const finalTasks = newTasks.map(t => t.id === taskId ? fullTask : t);
+      dispatch({ type: "FETCH_OK", board: state.board, tasks: finalTasks, members: state.members });
+    } catch (err: any) {
+      alert(err.message || "Failed to move task");
+      // Revert optimistic update
+      dispatch({ type: "FETCH_OK", board: state.board, tasks: previousTasks, members: state.members });
     }
   };
 
@@ -291,14 +328,19 @@ const BoardPage: React.FC = () => {
                      <h3 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', color: 'var(--text-muted)' }}>STORIES</h3>
                      <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '8px' }}>
                        {tasks.filter(t => t.type === "STORY").map(story => (
-                         <div key={story.id} style={{ 
-                           backgroundColor: 'var(--bg-card, #2d303e)', 
-                           padding: '12px 16px', 
-                           borderRadius: '8px', 
-                           minWidth: '250px', 
-                           borderLeft: '3px solid #3b82f6',
-                           boxShadow: '0 2px 4px rgba(0,0,0,0.3)' 
-                         }}>
+                         <div 
+                           key={story.id} 
+                           onClick={() => navigate(`/projects/${projectIdNum}/tasks/${story.id}`)}
+                           style={{ 
+                             backgroundColor: 'var(--bg-card, #2d303e)', 
+                             padding: '12px 16px', 
+                             borderRadius: '8px', 
+                             minWidth: '250px', 
+                             borderLeft: '3px solid #3b82f6',
+                             boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                             cursor: 'pointer'
+                           }}
+                         >
                            <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.95rem' }}>{story.title}</div>
                          </div>
                        ))}
@@ -345,6 +387,7 @@ const BoardPage: React.FC = () => {
                            column={col} 
                            tasks={tasks.filter((t) => t.columnID === col.id && t.type !== "STORY")}
                            onAddTaskClick={() => handleOpenCreateTaskModal(col.id)}
+                           onTaskClick={(taskId) => navigate(`/projects/${projectIdNum}/tasks/${taskId}`)}
                            onUpdateColumn={async (data) => {
                              try {
                                const updatedCol = await updateColumn(projectIdNum, boardIdNum, col.id, data);
@@ -360,6 +403,7 @@ const BoardPage: React.FC = () => {
                                dispatch({ type: "FETCH_OK", board: { ...board, columns: newCols }, tasks: state.tasks, members: state.members });
                              } catch(err: any) { alert(err.message || "Failed to delete column"); }
                            }}
+                           onTaskDrop={handleTaskDrop}
                          />
                        </div>
                      ))}

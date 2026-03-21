@@ -51,6 +51,25 @@ export async function createtask(req:Request,res:Response):Promise<void>{
                 status:column.name
             }
         });
+        await prisma.auditLog.create({
+            data:{
+                taskID: task.id,
+                actorId: req.user!.userID,
+                eventtype: "TASK_CREATED",
+                newValue: task.status,
+            }
+        });
+        if(assigneeId){
+            await prisma.auditLog.create({
+                data:{
+                    taskID: task.id,
+                    actorId: req.user!.userID,
+                    eventtype: "ASSIGNEE_CHANGE",
+                    oldValue: "none",
+                    newValue: assigneeId.toString()
+                }
+            });
+        }
         res.status(201).json(task);
 
     }
@@ -237,15 +256,17 @@ export async function movetask(req:Request,res:Response):Promise<void>{
                 return ;
             }
         }
-        const transition = await prisma.workTransition.findFirst({
-            where:{
-                boardID:targetcolumn.boardID,
-                fromStatus:task.status,
-                toStatus:targetcolumn.name
-            }
+        const currentcolumn = await prisma.column.findUnique({
+            where: { id: task.columnID }
         });
-        if(!transition){
-            res.status(400).json({error:"This status transition is not allowed"});
+
+        if (!currentcolumn) {
+            res.status(404).json({error:"Current Column Not Found"});
+            return;
+        }
+
+        if (targetcolumn.order <= currentcolumn.order) {
+            res.status(400).json({error:"Tasks can only be moved from left to right (forward)"});
             return;
         }
         await prisma.auditLog.create({

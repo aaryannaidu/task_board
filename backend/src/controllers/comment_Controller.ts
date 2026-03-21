@@ -125,6 +125,15 @@ export async function updatecomment(req:Request,res:Response):Promise<void>{
             where:{id:commentid},
             data:{content}
         });
+        await prisma.auditLog.create({
+            data:{
+                taskID: comment.taskID,
+                actorId: req.user!.userID,
+                eventtype: "COMMENT_EDITED",
+                oldValue: comment.content,
+                newValue: content
+            }
+        });
         res.status(200).json(update);
     }
     catch(error:unknown){
@@ -147,6 +156,14 @@ export async function deletecomment(req:Request, res:Response):Promise<void>{
             res.status(403).json({error:"You can only delete your own comments"});
             return;
         }
+        await prisma.auditLog.create({
+            data:{
+                taskID: comment.taskID,
+                actorId: req.user!.userID,
+                eventtype: "COMMENT_DELETED",
+                oldValue: comment.content
+            }
+        });
         await prisma.comment.delete({
             where:{id:commentid}
         });

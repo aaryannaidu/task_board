@@ -167,3 +167,28 @@ export interface UpdateTaskBody {
 export interface MoveTaskBody {
   columnId: number;
 }
+
+export interface Comment {
+  id: number;
+  content: string;
+  taskID: number;
+  authorID: number;
+  createdAt: string;
+  updatedAt: string;
+  author?: Pick<User, "id" | "name" | "avatarUrl">;
+}
+
+export interface Notification {
+  id: number;
+  userID: number;
+  taskID: number;
+  type: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  task?: {
+    id: number;
+    title: string;
+    status: string;
+  };
+}

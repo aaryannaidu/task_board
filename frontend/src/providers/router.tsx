@@ -1,4 +1,3 @@
-import React from "react";
 import { createBrowserRouter } from "react-router-dom";
 import Home from "../routes/home";
 import Register from "../routes/register";
@@ -6,6 +5,7 @@ import Login from "../routes/login";
 import Dashboard from "../routes/dashboard";
 import ProjectPage from "../routes/project";
 import BoardPage from "../routes/board";
+import TaskPage from "../routes/task";
 
 const router = createBrowserRouter([
     {
@@ -35,6 +35,10 @@ const router = createBrowserRouter([
     {
         path: "/projects/:id/boards/:boardId",
         element: <BoardPage />,
+    },
+    {
+        path: "/projects/:id/tasks/:taskId",
+        element: <TaskPage />,
     },
 ]);
 
