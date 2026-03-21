@@ -33,7 +33,7 @@ export async function createtask(req:Request,res:Response):Promise<void>{
                 where:{columnID:columnId}
             });
             if(taskcount>=column.wipLimit){
-                res.status(400).json({error:"WIP Limit reached for this Column"})
+                res.status(400).json({error:"WIP Limit reached for this column"})
                 return ;
             }
         }
@@ -51,7 +51,7 @@ export async function createtask(req:Request,res:Response):Promise<void>{
                 status:column.name
             }
         });
-        res.status(201).json({task});
+        res.status(201).json(task);
 
     }
     catch(error:unknown){
@@ -233,7 +233,7 @@ export async function movetask(req:Request,res:Response):Promise<void>{
                 where:{columnID:columnId}
             });
             if(taskcount>=targetcolumn.wipLimit){
-                res.status(400).json({error:"WIPLIMIT reached for this Column"});
+                res.status(400).json({error:"WIP Limit reached for this column"});
                 return ;
             }
         }
@@ -245,7 +245,7 @@ export async function movetask(req:Request,res:Response):Promise<void>{
             }
         });
         if(!transition){
-            res.status(400).json({error:"This Status Transition is not allowed"});
+            res.status(400).json({error:"This status transition is not allowed"});
             return;
         }
         await prisma.auditLog.create({
@@ -266,7 +266,7 @@ export async function movetask(req:Request,res:Response):Promise<void>{
                 closedAt:targetcolumn.name==='Close' ? new Date():task.closedAt
             }
         });
-        res.status(200).json({updated});
+        res.status(200).json(updated);
     }
     catch(error:unknown){
         res.status(500).json({error:"Something went wrong , Try again later "});
