@@ -129,7 +129,7 @@ Server running on http://localhost:3000
 
 | Command | What it does |
 |---------|-------------|
-| `npm test` | Run all unit tests |   
+| `npm test` | Run all  tests |   
 | `npm run dev` | Start server with auto-restart on file changes |
 | `npm run build` | Compile TypeScript to JavaScript |
 | `npm run start` | Run the compiled production build | 
@@ -285,23 +285,9 @@ npm test
 
 ### Run a specific test file
 ```bash
-npm test auth      # only auth tests
-npm test task      # only task tests
-npm test project   # only project tests
-```
-
-### What is tested
-
-| File | What it covers |
-|------|---------------|
-| `auth.test.ts` | Register, login, logout |
-| `task.test.ts` | Create task, WIP limit, STORY rule, transitions |
-| `project.test.ts` | Create project, add members, archive, permissions |
-
-### Expected output
-```
-Test Suites: 3 passed, 3 total
-Tests:       29 passed
+npm run test:unit # run all unit test      
+npm run test:integration # run all integration test
+npm test # run all test 
 ```
 
 > **Warning:** Running tests will clear your database.
