@@ -32,3 +32,7 @@ export type UpdateTaskBody = {
 export type MoveTaskBody = {
     columnId: number,
 }
+export type UpdateMeBody = {
+    name?: string;
+    avatarUrl?: string;
+};

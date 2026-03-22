@@ -39,52 +39,48 @@ Phase 8 → Testing, Polish & Documentation
 Models to define in `prisma/schema.prisma`:
 
 - **`User`**
-  - `id` (UUID, primary key)
+  - `id` (Int, primary key)
   - `name` (String)
   - `email` (String, unique)
   - `passwordHash` (String)
   - `avatarUrl` (String, nullable)
-  - `globalRole` (Enum: `GLOBAL_ADMIN`, `MEMBER`)
+  - `globalRole` (Enum: `ADMIN`, `MEMBER`)
   - `createdAt`, `updatedAt` (DateTime)
 
 - **`RefreshToken`**
-  - `id` (UUID)
+  - `id` (Int)
   - `token` (String, unique)
-  - `userId` (FK → User)
+  - `userID` (FK → User)
   - `expiresAt` (DateTime)
   - `createdAt` (DateTime)
 
 - **`ProjectMember`** *(junction table — needed now, used later)*
-  - `userId` (FK → User)
-  - `projectId` (FK → Project)
-  - `role` (Enum: `PROJECT_ADMIN`, `PROJECT_MEMBER`, `PROJECT_VIEWER`)
-  - Composite primary key: `(userId, projectId)`
+  - `id` (Int)
+  - `userID` (FK → User)
+  - `projectID` (FK → Project)
+  - `role` (Enum: `ADMIN`, `MEMBER`, `VIEWER`)
+  - Unique constraint: `(userID, projectID)`
 
 ### 1.2 Backend Tasks
 
 **Routes to implement** (`/api/auth`, `/api/users`):
 
-| Method | Endpoint | Description | Auth required |
-|--------|----------|-------------|---------------|
-| `POST` | `/api/auth/register` | Register new user | No |
-| `POST` | `/api/auth/login` | Login with email+password | No |
-| `POST` | `/api/auth/refresh` | Refresh access token | No (refresh token in cookie) |
-| `POST` | `/api/auth/logout` | Invalidate refresh token | Yes |
-| `GET` | `/api/users/me` | Get own profile | Yes |
-| `PATCH` | `/api/users/me` | Update name/avatar | Yes |
-| `GET` | `/api/users` | List all users (admin only) | Yes (Global Admin) |
+| `GET` | `/api/auth/me` | Get own profile | Yes |
+| `PATCH` | `/api/users/me` | Update own profile (name/avatar) | Yes |
+| `GET` | `/api/users` | List all users (admin only) | Yes (Admin) |
+| `GET` | `/api/users/:id` | Get any user details (admin only) | Yes (Admin) |
 
 **Implementation checklist:**
 - [ ] `POST /register` — hash password with `bcrypt` (saltRounds: 12), store user
 - [ ] `POST /login` — verify password, issue **access token** (15min) + **refresh token** (7 days)
-  - Access token → sent as `httpOnly` cookie named `access_token`
-  - Refresh token → sent as `httpOnly` cookie named `refresh_token`, stored in DB
-- [ ] `POST /refresh` — validate refresh token from DB, issue new access token
-- [ ] `POST /logout` — delete refresh token from DB, clear cookies
+- [ ] Access token stored in `httpOnly` cookie
+- [ ] Refresh token stored in `httpOnly` cookie and DB
+- [ ] `GET /auth/me` — return current user from `httpOnly` cookie context
+- [ ] `PATCH /users/me` — allow users to update their own `name` or `avatarUrl`
+- [ ] `GET /users` — Paginated/searchable list of all users for Global Admins
+- [ ] `GET /users/:id` — Detail view for Admins to inspect any user profile
 - [ ] `auth` middleware — verify JWT on every protected route
-- [ ] `requireGlobalAdmin` middleware — check `globalRole === GLOBAL_ADMIN`
-- [ ] `requireProjectRole(role)` middleware — check project membership
-- [ ] Avatar upload — use `multer` to handle file upload, store file path in DB
+- [ ] `requireAdmin` middleware — check `globalRole === ADMIN`
 - [ ] Proper typed error responses (no generic 500s)
 
 ### 1.3 Frontend Tasks
@@ -111,12 +107,12 @@ Models to define in `prisma/schema.prisma`:
 ### 2.1 Database Schema
 
 - **`Project`**
-  - `id` (UUID)
+  - `id` (Int)
   - `name` (String)
   - `description` (String, nullable)
-  - `isArchived` (Boolean, default: false)
+  - `archived` (Boolean, default: false)
   - `createdAt`, `updatedAt` (DateTime)
-  - Relations: `members → ProjectMember[]`, `boards → Board[]`
+  - Relations: `projectMembers → ProjectMember[]`, `boards → Board[]`
 
 ### 2.2 Backend Tasks
 
@@ -163,35 +159,36 @@ Models to define in `prisma/schema.prisma`:
 ### 3.1 Database Schema
 
 - **`Board`**
-  - `id` (UUID)
+  - `id` (Int)
   - `name` (String)
-  - `projectId` (FK → Project)
+  - `projectID` (FK → Project)
   - `createdAt`, `updatedAt`
-  - Relations: `columns → Column[]`
+  - Relations: `columns → Column[]`, `transitions → WorkTransition[]`
 
 - **`Column`**
-  - `id` (UUID)
+  - `id` (Int)
   - `name` (String) — e.g., "To Do", "In Progress"
-  - `boardId` (FK → Board)
+  - `boardID` (FK → Board)
   - `order` (Int) — for column ordering
   - `wipLimit` (Int, nullable) — max tasks allowed in this column
   - `createdAt`, `updatedAt`
 
 ### 3.2 Backend Tasks
 
-**Routes** (`/api/projects/:projectId/boards`, `/api/boards`):
+**Routes** (`/api/projects/:projectId/boards`):
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| `GET` | `/api/projects/:id/boards` | List boards in project | Yes (Member) |
-| `POST` | `/api/projects/:id/boards` | Create board | Yes (Project Admin) |
-| `GET` | `/api/boards/:id` | Get board with columns & tasks | Yes (Member) |
-| `PATCH` | `/api/boards/:id` | Rename board | Yes (Project Admin) |
-| `DELETE` | `/api/boards/:id` | Delete board | Yes (Project Admin) |
-| `POST` | `/api/boards/:id/columns` | Add column | Yes (Project Admin) |
-| `PATCH` | `/api/boards/:id/columns/:colId` | Rename/update WIP limit | Yes (Project Admin) |
-| `DELETE` | `/api/boards/:id/columns/:colId` | Delete column | Yes (Project Admin) |
-| `PATCH` | `/api/boards/:id/columns/reorder` | Reorder columns | Yes (Project Admin) |
+| `GET` | `/api/projects/:projectId/boards` | List boards in project | Yes (Member) |
+| `POST` | `/api/projects/:projectId/boards` | Create board | Yes (Project Admin) |
+| `PATCH` | `/api/projects/:projectId/boards/:boardid` | Update board | Yes (Project Admin) |
+| `DELETE` | `/api/projects/:projectId/boards/:boardid` | Delete board | Yes (Project Admin) |
+| `POST` | `/api/projects/:projectId/boards/:boardid/columns` | Add column | Yes (Project Admin) |
+| `PATCH` | `/api/projects/:projectId/boards/:boardid/columns/:columnid` | Rename/update WIP limit | Yes (Project Admin) |
+| `DELETE` | `/api/projects/:projectId/boards/:boardid/columns/:columnid` | Delete column | Yes (Project Admin) |
+| `PATCH` | `/api/projects/:projectId/boards/:boardid/columns/reorder` | Reorder columns | Yes (Project Admin) |
+| `POST` | `/api/projects/:projectId/boards/:boardid/transitions` | Add column transition | Yes (Project Admin) |
+| `DELETE` | `/api/projects/:projectId/boards/:boardid/transitions/:transitionid` | Delete column transition | Yes (Project Admin) |
 
 **Implementation checklist:**
 - [ ] Default columns created on board creation: `To Do`, `In Progress`, `Review`, `Done`
@@ -220,35 +217,32 @@ Models to define in `prisma/schema.prisma`:
 
 ### 4.1 Database Schema
 
-- **`Issue`**
-  - `id` (UUID)
+- **`Task`**
+  - `id` (Int)
   - `title` (String)
   - `description` (String, nullable) — rich text (stored as HTML/Markdown)
   - `type` (Enum: `STORY`, `TASK`, `BUG`)
   - `status` (String) — matches a Column name on the board
   - `priority` (Enum: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`)
-  - `projectId` (FK → Project)
-  - `boardId` (FK → Board)
-  - `columnId` (FK → Column)
-  - `parentId` (FK → Issue, nullable) — for TASK/BUG linking to a STORY
-  - `assigneeId` (FK → User, nullable)
-  - `reporterId` (FK → User)
+  - `columnID` (FK → Column)
+  - `parentID` (FK → Task, nullable) — for TASK/BUG linking to a STORY
+  - `assigneeID` (FK → User, nullable)
+  - `reporterID` (FK → User)
   - `dueDate` (DateTime, nullable)
-  - `createdAt`, `updatedAt`, `resolvedAt` (nullable), `closedAt` (nullable)
+  - `createdAt`, `updatedAt`, `resolveAt` (nullable), `closedAt` (nullable)
 
 ### 4.2 Backend Tasks
 
-**Routes** (`/api/issues`):
+**Routes** (`/api/projects/:projectId/tasks`):
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| `GET` | `/api/boards/:id/issues` | Get all issues on a board | Yes (Member) |
-| `POST` | `/api/issues` | Create issue | Yes (Member) |
-| `GET` | `/api/issues/:id` | Get issue details | Yes (Member) |
-| `PATCH` | `/api/issues/:id` | Edit issue fields | Yes (Member) |
-| `DELETE` | `/api/issues/:id` | Delete issue | Yes (Project Admin) |
-| `PATCH` | `/api/issues/:id/move` | Move issue to different column | Yes (Member) |
-| `GET` | `/api/issues/:id/children` | Get child tasks/bugs of a story | Yes (Member) |
+| `GET` | `/api/projects/:projectId/tasks` | Get all tasks | Yes (Member) |
+| `POST` | `/api/projects/:projectId/tasks` | Create task | Yes (Member) |
+| `GET` | `/api/projects/:projectId/tasks/:taskid` | Get task details | Yes (Member) |
+| `PATCH` | `/api/projects/:projectId/tasks/:taskid` | Edit task fields | Yes (Member) |
+| `DELETE` | `/api/projects/:projectId/tasks/:taskid` | Delete task | Yes (Project Admin) |
+| `POST` | `/api/projects/:projectId/tasks/:taskid/move` | Move task to different column | Yes (Member) |
 
 **Implementation checklist:**
 - [ ] `STORY` type is **not directly movable to columns** — its status is derived from children
@@ -281,18 +275,18 @@ Models to define in `prisma/schema.prisma`:
 
 ### 5.1 Database Schema
 
-- **`WorkflowTransition`**
-  - `id` (UUID)
-  - `boardId` (FK → Board)
-  - `fromColumnId` (FK → Column)
-  - `toColumnId` (FK → Column)
+- **`WorkTransition`**
+  - `id` (Int)
+  - `boardID` (FK → Board)
+  - `fromStatus` (String)
+  - `toStatus` (String)
   - *(This defines which moves are valid on a given board)*
 
 - **`AuditLog`**
-  - `id` (UUID)
-  - `issueId` (FK → Issue)
-  - `userId` (FK → User) — who made the change
-  - `eventType` (Enum: `STATUS_CHANGED`, `ASSIGNEE_CHANGED`, `COMMENT_ADDED`, `COMMENT_EDITED`, `COMMENT_DELETED`)
+  - `id` (Int)
+  - `taskID` (FK → Task)
+  - `actorId` (FK → User) — who made the change
+  - `eventtype` (String)
   - `oldValue` (String, nullable)
   - `newValue` (String, nullable)
   - `createdAt` (DateTime)
@@ -321,27 +315,20 @@ Models to define in `prisma/schema.prisma`:
 ### 6.1 Database Schema
 
 - **`Comment`**
-  - `id` (UUID)
-  - `issueId` (FK → Issue)
-  - `authorId` (FK → User)
+  - `id` (Int)
+  - `taskID` (FK → Task)
+  - `authorID` (FK → User)
   - `content` (String) — rich text (HTML)
   - `createdAt`, `updatedAt`
-  - `isEdited` (Boolean, default: false)
-
-- **`Mention`**
-  - `id` (UUID)
-  - `commentId` (FK → Comment)
-  - `mentionedUserId` (FK → User)
-  - *(Parsed from @username tags in comment content at write time)*
 
 ### 6.2 Backend Tasks
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| `GET` | `/api/issues/:id/comments` | Get all comments on issue | Yes (Member) |
-| `POST` | `/api/issues/:id/comments` | Add comment | Yes (Member) |
-| `PATCH` | `/api/comments/:id` | Edit own comment | Yes (author only) |
-| `DELETE` | `/api/comments/:id` | Delete own comment | Yes (author / Project Admin) |
+| `GET` | `/api/projects/:projectId/tasks/:taskid/comments` | Get all comments on task | Yes (Member) |
+| `POST` | `/api/projects/:projectId/tasks/:taskid/comments` | Add comment | Yes (Member) |
+| `PATCH` | `/api/projects/:projectId/tasks/:taskid/comments/:commentid` | Edit own comment | Yes (author only) |
+| `DELETE` | `/api/projects/:projectId/tasks/:taskid/comments/:commentid` | Delete own comment | Yes (author / Project Admin) |
 
 **Implementation checklist:**
 - [ ] Parse `@username` mentions from comment content on save
@@ -366,12 +353,12 @@ Models to define in `prisma/schema.prisma`:
 ### 7.1 Database Schema
 
 - **`Notification`**
-  - `id` (UUID)
-  - `recipientId` (FK → User)
-  - `type` (Enum: `TASK_ASSIGNED`, `STATUS_CHANGED`, `COMMENT_ADDED`, `MENTIONED`)
-  - `message` (String) — human-readable text
-  - `issueId` (FK → Issue, nullable)
-  - `isRead` (Boolean, default: false)
+  - `id` (Int)
+  - `userID` (FK → User)
+  - `type` (String)
+  - `message` (String)
+  - `taskID` (FK → Task, nullable)
+  - `read` (Boolean, default: false)
   - `createdAt` (DateTime)
 
 ### 7.2 Backend Tasks

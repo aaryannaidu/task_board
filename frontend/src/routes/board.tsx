@@ -39,6 +39,8 @@ const BoardPage: React.FC = () => {
   const [draggingColIndex, setDraggingColIndex] = useState<number | null>(null);
 
   // Modal State
+  const [createColumnModalOpen, setCreateColumnModalOpen] = useState(false);
+  const [newColumnName, setNewColumnName] = useState("");
   const [createTaskModalOpen, setCreateTaskModalOpen] = useState(false);
   const [createTaskColId, setCreateTaskColId] = useState<number | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
@@ -96,14 +98,23 @@ const BoardPage: React.FC = () => {
     }
   };
 
-  const handleCreateColumn = async () => {
+  const handleCreateColumn = () => {
     if (state.status !== "ok") return;
-    const name = window.prompt("Enter column name:");
-    if (!name || !name.trim()) return;
+    setNewColumnName("");
+    setCreateColumnModalOpen(true);
+  };
+
+  const handleCreateColumnSubmit = async () => {
+    if (state.status !== "ok") return;
+    if (!newColumnName.trim()) {
+      alert("Column name is required");
+      return;
+    }
     try {
-      const newCol = await createColumn(projectIdNum, boardIdNum, { name: name.trim() });
+      const newCol = await createColumn(projectIdNum, boardIdNum, { name: newColumnName.trim() });
       const updatedColumns = [...(state.board.columns || []), newCol];
       dispatch({ type: "FETCH_OK", board: { ...state.board, columns: updatedColumns }, tasks: state.tasks, members: state.members });
+      setCreateColumnModalOpen(false);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to create column");
     }
@@ -490,6 +501,33 @@ const BoardPage: React.FC = () => {
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
                     <button className="btn btn--secondary" style={{ backgroundColor: '#2d303e', color: '#fff', border: 'none' }} onClick={() => setCreateTaskModalOpen(false)}>Cancel</button>
                     <button className="btn btn--primary" style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none' }} onClick={handleCreateTaskSubmit}>Create</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {createColumnModalOpen && (
+              <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="modal-content" style={{ backgroundColor: '#111319', border: '1px solid #2d303e', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', color: '#f1f1f1', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h2 style={{ fontSize: '1.25rem', margin: 0, color: '#fff', fontWeight: 600 }}>Create Column</h2>
+                  
+                  <input 
+                    className="form-input" 
+                    placeholder="Column Name"
+                    value={newColumnName}
+                    onChange={e => setNewColumnName(e.target.value)}
+                    style={{ width: '100%', padding: '12px', fontSize: '1rem', boxSizing: 'border-box', backgroundColor: '#1c1e27', border: '1px solid #3a3f58', color: '#fff', borderRadius: '6px' }}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleCreateColumnSubmit();
+                      }
+                    }}
+                  />
+                  
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+                    <button className="btn btn--secondary" style={{ backgroundColor: '#2d303e', color: '#fff', border: 'none' }} onClick={() => setCreateColumnModalOpen(false)}>Cancel</button>
+                    <button className="btn btn--primary" style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none' }} onClick={handleCreateColumnSubmit}>Create</button>
                   </div>
                 </div>
               </div>

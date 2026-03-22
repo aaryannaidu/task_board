@@ -6,6 +6,7 @@ import Dashboard from "../routes/dashboard";
 import ProjectPage from "../routes/project";
 import BoardPage from "../routes/board";
 import TaskPage from "../routes/task";
+import UserProfile from "../routes/user";
 
 const router = createBrowserRouter([
     {
@@ -22,7 +23,7 @@ const router = createBrowserRouter([
     },
     {
         path: "/profile",
-        element: <div>Profile Page (TODO)</div>,
+        element: <UserProfile />,
     },
     {
         path: "/dashboard",

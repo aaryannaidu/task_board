@@ -37,7 +37,7 @@ function reducer(state: State, action: Action): State {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const Dashboard: React.FC = () => {
-  const { state: authState, dispatch: dispatchAuth } = useAuth();
+  const { state: authState } = useAuth();
   const navigate = useNavigate();
   const [state, dispatch] = useReducer(reducer, { status: "loading" });
 
@@ -63,17 +63,7 @@ const Dashboard: React.FC = () => {
   // Toggle show archived
   const [showArchived, setShowArchived] = useState(false);
 
-  // ─── Handle Logout ──────────────────────────────────────────────────────────
-
-  async function handleLogout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch (err) {
-      console.error("Logout error", err);
-    }
-    dispatchAuth({ type: "LOGOUT" });
-    navigate("/login");
-  }  useEffect(() => {
+useEffect(() => {
     dispatch({ type: "FETCH_START" });
     getProjects()
       .then((projects) => dispatch({ type: "FETCH_OK", projects }))
@@ -211,7 +201,44 @@ const Dashboard: React.FC = () => {
             </svg>
             Create Project
           </button>
-          
+
+          {/* Avatar button navigates to profile page */}
+          <button
+            id="btn-avatar"
+            onClick={() => navigate('/profile')}
+            aria-label="Go to profile"
+            title={authState.user?.name ?? 'Profile'}
+            style={{
+              width: '40px', height: '40px', borderRadius: '50%', padding: 0,
+              border: '2px solid rgba(99,102,241,0.5)', cursor: 'pointer',
+              overflow: 'hidden', background: 'linear-gradient(135deg,#818cf8,#4f46e5)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, transition: 'box-shadow 0.2s, transform 0.2s'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.boxShadow = '0 0 0 4px rgba(99,102,241,0.35)';
+              e.currentTarget.style.transform = 'scale(1.06)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            {authState.user?.avatarUrl ? (
+              <img
+                src={authState.user.avatarUrl}
+                alt={authState.user.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Inter, sans-serif' }}>
+                {authState.user?.name
+                  ? authState.user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)
+                  : '?'}
+              </span>
+            )}
+          </button>
+
           <div style={{ position: 'relative' }}>
             <button
               className="btn btn--icon"
@@ -422,37 +449,7 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Logout button at bottom right */}
-      <button 
-        onClick={handleLogout}
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          padding: '10px 20px',
-          borderRadius: '8px',
-          backgroundColor: 'var(--bg-card, #2d303e)',
-          color: '#ff4d4f',
-          border: '1px solid #481d1d',
-          cursor: 'pointer',
-          fontWeight: 600,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          transition: 'all 0.2s ease'
-        }}
-        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#481d1d'}
-        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--bg-card, #2d303e)'}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <polyline points="16 17 21 12 16 7"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-        Logout
-      </button>
+
     </div>
   );
 };
