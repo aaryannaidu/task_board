@@ -18,6 +18,7 @@ export default function TaskPage() {
     // ── Columns state (for moving task) ──────────────────────────────────────
     const [availableColumns, setAvailableColumns] = useState<Column[]>([]);
     const [availableTransitions, setAvailableTransitions] = useState<WorkTransition[]>([]);
+    const [currentBoardId, setCurrentBoardId] = useState<number | null>(null);
 
     // ── Edit mode ────────────────────────────────────────────────────────────
     const [editMode, setEditMode] = useState(false);
@@ -74,6 +75,7 @@ export default function TaskPage() {
                     if (board.columns?.some(col => col.id === t.columnID)) {
                         setAvailableColumns(board.columns || []);
                         setAvailableTransitions(board.transitions || []);
+                        setCurrentBoardId(board.id);
                         break;
                     }
                 }
@@ -292,10 +294,15 @@ export default function TaskPage() {
     };
 
     const handleDeleteTask = async () => {
-        if (!window.confirm("Are you sure you want to delete this task?")) return;
+        if (!window.confirm("Are you sure you want to delete this task? This action cannot be undone.")) return;
         try {
             await deleteTask(projectId, taskId);
-            navigate(`/projects/${projectId}`);
+            // Navigate back to the board page if we know the board, otherwise the project page
+            if (currentBoardId) {
+                navigate(`/projects/${projectId}/boards/${currentBoardId}`);
+            } else {
+                navigate(`/projects/${projectId}`);
+            }
         } catch (err: any) {
             alert(err.message || "Failed to delete task");
         }
