@@ -21,11 +21,22 @@ type AuthAction =
   | { type: "UPDATE_PROFILE"; payload: Partial<User> }
   | { type: "SET_LOADING"; payload: boolean };
 
-const initialState: AuthState = {
-  user: null,
-  isAuthenticated: false,
-  isLoading: true, // Start loading as true to check for an existing session
-};
+// Synchronously pre-populate from localStorage so the header renders
+// immediately on page load / refresh, before the /api/auth/me round-trip.
+function getInitialState(): AuthState {
+  try {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      const user = JSON.parse(stored) as User;
+      return { user, isAuthenticated: true, isLoading: true };
+    }
+  } catch {
+    // ignore malformed data
+  }
+  return { user: null, isAuthenticated: false, isLoading: true };
+}
+
+const initialState: AuthState = getInitialState();
 
 const AuthContext = createContext<{
   state: AuthState;
@@ -35,8 +46,11 @@ const AuthContext = createContext<{
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case "LOGIN":
+      localStorage.setItem("user", JSON.stringify(action.payload));
       return { ...state, user: action.payload, isAuthenticated: true, isLoading: false };
     case "LOGOUT":
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
       return { ...state, user: null, isAuthenticated: false, isLoading: false };
     case "UPDATE_PROFILE":
       return state.user

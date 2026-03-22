@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import type { User } from "../contexts/AuthContext";
 
 const Login = () => {
     const [email, setEmail] = useState("");
@@ -7,6 +9,7 @@ const Login = () => {
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+    const { dispatch } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,9 +31,14 @@ const Login = () => {
                 throw new Error(data.message || "Login failed");
             }
 
-            // Store token and user info
-            localStorage.setItem("token", data.token);
-            localStorage.setItem("user", JSON.stringify(data.user));
+            // The backend returns the user object directly at the top level
+            // (not wrapped in data.user). Tokens are set via httpOnly cookies.
+            const user = data as User;
+
+            // Dispatch LOGIN so AuthContext has user immediately – no need to
+            // wait for the restoreSession /api/auth/me round-trip on the next page.
+            // (The reducer also syncs to localStorage for fast restore on refresh.)
+            dispatch({ type: "LOGIN", payload: user });
 
             // Redirect to dashboard
             navigate("/dashboard");
