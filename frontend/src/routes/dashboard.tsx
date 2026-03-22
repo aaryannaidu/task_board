@@ -1,10 +1,9 @@
 import React, { useEffect, useReducer, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { getProjects, createProject } from "../utils/ProjectApi";
 import { useAuth } from "../contexts/AuthContext";
 import ProjectCard from "../components/ProjectCard";
-import type { Project, ProjectRole, CreateProjectBody, Notification } from "../utils/types";
-import { getNotifications, markAsRead, markAllRead } from "../utils/NotificationsApi";
+import HeaderActions from "../components/HeaderActions";
+import type { Project, ProjectRole, CreateProjectBody } from "../utils/types";
 import "./css/dashboard.css";
 
 // ─── Local state ──────────────────────────────────────────────────────────────
@@ -38,7 +37,6 @@ function reducer(state: State, action: Action): State {
 
 const Dashboard: React.FC = () => {
   const { state: authState } = useAuth();
-  const navigate = useNavigate();
   const [state, dispatch] = useReducer(reducer, { status: "loading" });
 
   // Create-project modal state
@@ -63,7 +61,7 @@ const Dashboard: React.FC = () => {
   // Toggle show archived
   const [showArchived, setShowArchived] = useState(false);
 
-useEffect(() => {
+  useEffect(() => {
     dispatch({ type: "FETCH_START" });
     getProjects()
       .then((projects) => dispatch({ type: "FETCH_OK", projects }))
@@ -72,39 +70,6 @@ useEffect(() => {
         dispatch({ type: "FETCH_ERROR", message });
       });
   }, []);
-
-  // ─── Notifications setup ────────────────────────────────────────────────────
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  useEffect(() => {
-    const fetchNotifs = () => {
-      getNotifications().then(setNotifications).catch(console.error);
-    };
-    fetchNotifs();
-    const interval = setInterval(fetchNotifs, 30000); // Poll every 30s
-    return () => clearInterval(interval);
-  }, []);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const handleMarkAsRead = async (id: number) => {
-    try {
-      await markAsRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleMarkAllRead = async () => {
-    try {
-      await markAllRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   // ─── Create project ────────────────────────────────────────────────────────
 
@@ -202,111 +167,7 @@ useEffect(() => {
             Create Project
           </button>
 
-          {/* Avatar button navigates to profile page */}
-          <button
-            id="btn-avatar"
-            onClick={() => navigate('/profile')}
-            aria-label="Go to profile"
-            title={authState.user?.name ?? 'Profile'}
-            style={{
-              width: '40px', height: '40px', borderRadius: '50%', padding: 0,
-              border: '2px solid rgba(99,102,241,0.5)', cursor: 'pointer',
-              overflow: 'hidden', background: 'linear-gradient(135deg,#818cf8,#4f46e5)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, transition: 'box-shadow 0.2s, transform 0.2s'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.boxShadow = '0 0 0 4px rgba(99,102,241,0.35)';
-              e.currentTarget.style.transform = 'scale(1.06)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            {authState.user?.avatarUrl ? (
-              <img
-                src={authState.user.avatarUrl}
-                alt={authState.user.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : (
-              <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Inter, sans-serif' }}>
-                {authState.user?.name
-                  ? authState.user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)
-                  : '?'}
-              </span>
-            )}
-          </button>
-
-          <div style={{ position: 'relative' }}>
-            <button
-              className="btn btn--icon"
-              style={{ background: 'transparent', border: '1px solid var(--border-color)', position: 'relative', width: '40px', height: '40px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onClick={() => setShowNotifications(!showNotifications)}
-              aria-label="Notifications"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-              </svg>
-              {unreadCount > 0 && (
-                <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {showNotifications && (
-              <div style={{
-                position: 'absolute', top: '100%', right: 0, marginTop: '12px', width: '360px', maxHeight: '500px',
-                background: 'var(--bg-card, #2d303e)', borderRadius: '12px', border: '1px solid var(--border-color)',
-                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)', zIndex: 1000, overflow: 'hidden', display: 'flex', flexDirection: 'column'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
-                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Notifications</h3>
-                  {unreadCount > 0 && (
-                    <button 
-                      onClick={handleMarkAllRead} 
-                      style={{ background: 'none', border: 'none', color: '#818cf8', fontSize: '0.8rem', cursor: 'pointer', padding: 0 }}
-                    >
-                      Mark all read
-                    </button>
-                  )}
-                </div>
-                <div style={{ padding: '0', overflowY: 'auto', flex: 1 }}>
-                  {notifications.length === 0 ? (
-                    <p style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-gray)', margin: 0 }}>No notifications yet.</p>
-                  ) : (
-                    notifications.map(n => (
-                      <div key={n.id} style={{
-                        padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)',
-                        background: n.read ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
-                        display: 'flex', gap: '12px', alignItems: 'flex-start',
-                        transition: 'background 0.2s'
-                      }}>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ margin: '0 0 4px 0', fontSize: '0.9rem', color: n.read ? 'var(--text-gray)' : 'var(--text-white)' }}>
-                            {n.message}
-                          </p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              {new Date(n.createdAt).toLocaleString()}
-                            </span>
-                            {!n.read && (
-                              <button onClick={() => handleMarkAsRead(n.id)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.75rem', cursor: 'pointer', padding: '4px' }}>
-                                Mark Read
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <HeaderActions />
         </div>
       </header>
 

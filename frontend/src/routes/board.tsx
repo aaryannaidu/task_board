@@ -5,6 +5,7 @@ import { getTasks, createTask, moveTask } from "../utils/TaskApi";
 import { getProjectMembers } from "../utils/ProjectApi";
 import type { Board, Column, Task, ProjectMember, IssueType, Priority } from "../utils/types";
 import ColumnCard from "../components/ColumnCard";
+import HeaderActions from "../components/HeaderActions";
 import "./css/board.css";
 
 // ─── Local state ──────────────────────────────────────────────────────────────
@@ -263,20 +264,23 @@ const BoardPage: React.FC = () => {
         return (
           <>
             <header className="board-page__header">
-              <div className="board-page__breadcrumb">
-                <button
-                  className="breadcrumb__back hover-glow"
-                  onClick={() => navigate(`/projects/${projectIdNum}`)}
-                  aria-label="Back to project"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12" />
-                    <polyline points="12 19 5 12 12 5" />
-                  </svg>
-                  Project
-                </button>
-                <span className="breadcrumb__sep">/</span>
-                <span className="breadcrumb__current">{board.name}</span>
+              <div className="board-page__breadcrumb" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <button
+                    className="breadcrumb__back hover-glow"
+                    onClick={() => navigate(`/projects/${projectIdNum}`)}
+                    aria-label="Back to project"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="19" y1="12" x2="5" y2="12" />
+                      <polyline points="12 19 5 12 12 5" />
+                    </svg>
+                    Project
+                  </button>
+                  <span className="breadcrumb__sep">/</span>
+                  <span className="breadcrumb__current">{board.name}</span>
+                </div>
+                <HeaderActions />
               </div>
 
               <div className="board-page__title-row">

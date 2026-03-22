@@ -11,6 +11,7 @@ import {
 import { createBoard, createColumn } from "../utils/BoardApi";
 import { useAuth } from "../contexts/AuthContext";
 import BoardCard from "../components/BoardCard";
+import HeaderActions from "../components/HeaderActions";
 import type { Project, ProjectRole } from "../utils/types";
 import "./css/project.css";
 
@@ -285,20 +286,23 @@ const ProjectPage: React.FC = () => {
           <>
             {/* Header */}
             <header className="project-page__header">
-              <div className="project-page__breadcrumb">
-                <button
-                  className="breadcrumb__back"
-                  onClick={() => navigate("/dashboard")}
-                  aria-label="Back to dashboard"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12" />
-                    <polyline points="12 19 5 12 12 5" />
-                  </svg>
-                  Projects
-                </button>
-                <span className="breadcrumb__sep">/</span>
-                <span className="breadcrumb__current">{project.name}</span>
+              <div className="project-page__breadcrumb" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <button
+                    className="breadcrumb__back"
+                    onClick={() => navigate("/dashboard")}
+                    aria-label="Back to dashboard"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="19" y1="12" x2="5" y2="12" />
+                      <polyline points="12 19 5 12 12 5" />
+                    </svg>
+                    Projects
+                  </button>
+                  <span className="breadcrumb__sep">/</span>
+                  <span className="breadcrumb__current">{project.name}</span>
+                </div>
+                <HeaderActions />
               </div>
 
               <div className="project-page__title-row">

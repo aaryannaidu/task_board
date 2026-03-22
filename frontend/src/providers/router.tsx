@@ -7,6 +7,7 @@ import ProjectPage from "../routes/project";
 import BoardPage from "../routes/board";
 import TaskPage from "../routes/task";
 import UserProfile from "../routes/user";
+import MyTasks from "../routes/my_tasks";
 
 const router = createBrowserRouter([
     {
@@ -24,6 +25,10 @@ const router = createBrowserRouter([
     {
         path: "/profile",
         element: <UserProfile />,
+    },
+    {
+        path: "/my-tasks",
+        element: <MyTasks />,
     },
     {
         path: "/dashboard",
