@@ -150,23 +150,61 @@ export async function createcolumn(req:Request,res:Response):Promise<void>{
             return;
         }
 
-        let {name,order,wipLimit}= req.body;
+        const {name, wipLimit} = req.body;
         if(!name){
             res.status(400).json({error:"Column name is required"});
             return;
         }
 
-        if (order === undefined || order === null) {
-            const lastColumn = await prisma.column.findFirst({
-                where: { boardID: boardid },
-                orderBy: { order: 'desc' }
-            });
-            order = lastColumn ? lastColumn.order + 1 : 1;
-        }
-
-        const column = await prisma.column.create({
-            data:{name,order,wipLimit:wipLimit?? null , boardID:boardid}
+        // Fetch all existing columns ordered by position
+        const existingColumns = await prisma.column.findMany({
+            where: { boardID: boardid },
+            orderBy: { order: 'asc' }
         });
+
+        // Find the "Done" column — it should always stay last
+        const doneIndex = existingColumns.findIndex(c => c.name === 'Done');
+        const doneColumn = doneIndex !== -1 ? existingColumns[doneIndex] : null;
+
+        // New column sits just before Done (or at end if Done doesn't exist)
+        const insertOrder = doneColumn ? doneColumn.order : (existingColumns.length > 0 ? existingColumns[existingColumns.length - 1].order + 1 : 1);
+
+        const column = await prisma.$transaction(async (tx) => {
+            // If there's a Done column, push it one step further
+            if (doneColumn) {
+                await tx.column.update({
+                    where: { id: doneColumn.id },
+                    data: { order: doneColumn.order + 1 }
+                });
+            }
+
+            const newCol = await tx.column.create({
+                data: { name, order: insertOrder, wipLimit: wipLimit ?? null, boardID: boardid }
+            });
+
+            // Rebuild all sequential forward transitions for the board
+            const allColumns = await tx.column.findMany({
+                where: { boardID: boardid },
+                orderBy: { order: 'asc' }
+            });
+
+            // Delete existing transitions and recreate
+            await tx.workTransition.deleteMany({ where: { boardID: boardid } });
+            const newTransitions: { fromStatus: string; toStatus: string; boardID: number }[] = [];
+            for (let i = 0; i < allColumns.length - 1; i++) {
+                newTransitions.push({
+                    fromStatus: allColumns[i].name,
+                    toStatus: allColumns[i + 1].name,
+                    boardID: boardid
+                });
+            }
+            if (newTransitions.length > 0) {
+                await tx.workTransition.createMany({ data: newTransitions });
+            }
+
+            return newCol;
+        });
+
         res.status(201).json(column);
     }
     catch(error:unknown){
@@ -242,6 +280,7 @@ export async function deletecolumn(req:Request,res:Response):Promise<void>{
 export async function reordercolumns(req: Request, res: Response): Promise<void> {
     try {
         const projectid = parseInt(req.params.projectid as string);
+        const boardid = parseInt(req.params.boardid as string);
 
         const member = await prisma.projectMember.findUnique({
             where: {
@@ -256,20 +295,51 @@ export async function reordercolumns(req: Request, res: Response): Promise<void>
             return;
         }
 
-        const { columns } = req.body;
+        const { columns } = req.body as { columns: { id: number; order: number }[] };
         if (!Array.isArray(columns)) {
             res.status(400).json({ error: "List of columns is required" });
             return;
         }
 
-        const transactionUpdates = columns.map((col: { id: number, order: number }) => {
-            return prisma.column.update({
-                where: { id: col.id },
-                data: { order: col.order }
+        // Enforce Done stays last: find the Done column, force its order to max
+        const allColData = await prisma.column.findMany({
+            where: { boardID: boardid },
+            select: { id: true, name: true }
+        });
+        const doneCol = allColData.find(c => c.name === 'Done');
+        let orderedPayload = [...columns];
+        if (doneCol) {
+            const maxOrder = Math.max(...orderedPayload.map(c => c.order));
+            orderedPayload = orderedPayload.map(c =>
+                c.id === doneCol.id ? { ...c, order: maxOrder } : c
+            );
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Apply the new orders
+            await Promise.all(orderedPayload.map(col =>
+                tx.column.update({ where: { id: col.id }, data: { order: col.order } })
+            ));
+
+            // Rebuild sequential transitions based on the new order
+            const reorderedColumns = await tx.column.findMany({
+                where: { boardID: boardid },
+                orderBy: { order: 'asc' }
             });
+            await tx.workTransition.deleteMany({ where: { boardID: boardid } });
+            const newTransitions: { fromStatus: string; toStatus: string; boardID: number }[] = [];
+            for (let i = 0; i < reorderedColumns.length - 1; i++) {
+                newTransitions.push({
+                    fromStatus: reorderedColumns[i].name,
+                    toStatus: reorderedColumns[i + 1].name,
+                    boardID: boardid
+                });
+            }
+            if (newTransitions.length > 0) {
+                await tx.workTransition.createMany({ data: newTransitions });
+            }
         });
 
-        await prisma.$transaction(transactionUpdates);
         res.status(200).json({ message: "Columns reordered" });
     } catch (error: unknown) {
         res.status(500).json({ error: "Server error, please try again" });

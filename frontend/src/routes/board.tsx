@@ -1,6 +1,6 @@
 import React, { useEffect, useReducer, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getBoards, updateBoard, createColumn, updateColumn, deleteColumn, reorderColumns } from "../utils/BoardApi";
+import { getBoards, updateBoard, createColumn, updateColumn, deleteColumn, reorderColumns, deleteBoard } from "../utils/BoardApi";
 import { getTasks, createTask, moveTask } from "../utils/TaskApi";
 import { getProjectMembers } from "../utils/ProjectApi";
 import type { Board, Column, Task, ProjectMember, IssueType, Priority } from "../utils/types";
@@ -99,6 +99,20 @@ const BoardPage: React.FC = () => {
     }
   };
 
+  const handleDeleteBoard = async () => {
+    if (state.status !== "ok") return;
+    if (!window.confirm(`Are you sure you want to delete the board "${state.board.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await deleteBoard(projectIdNum, boardIdNum);
+      navigate(`/projects/${projectIdNum}`);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete board");
+    }
+  };
+
   const handleCreateColumn = () => {
     if (state.status !== "ok") return;
     setNewColumnName("");
@@ -112,9 +126,13 @@ const BoardPage: React.FC = () => {
       return;
     }
     try {
-      const newCol = await createColumn(projectIdNum, boardIdNum, { name: newColumnName.trim() });
-      const updatedColumns = [...(state.board.columns || []), newCol];
-      dispatch({ type: "FETCH_OK", board: { ...state.board, columns: updatedColumns }, tasks: state.tasks, members: state.members });
+      await createColumn(projectIdNum, boardIdNum, { name: newColumnName.trim() });
+      // Re-fetch the board from server to get updated column order + transitions
+      const boards = await getBoards(projectIdNum);
+      const updatedBoard = boards.find((b) => b.id === boardIdNum);
+      if (updatedBoard) {
+        dispatch({ type: "FETCH_OK", board: updatedBoard, tasks: state.tasks, members: state.members });
+      }
       setCreateColumnModalOpen(false);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to create column");
@@ -122,13 +140,24 @@ const BoardPage: React.FC = () => {
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (state.status === "ok") {
+      const cols = state.board.columns ?? [];
+      // Prevent dragging the Done column
+      if (cols[index]?.name === 'Done') {
+        e.preventDefault();
+        return;
+      }
+    }
     setDraggingColIndex(index);
     e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragEnter = (index: number) => {
     if (draggingColIndex === null || draggingColIndex === index || state.status !== "ok") return;
-    const newCols = [...(state.board.columns || [])];
+    const cols = state.board.columns ?? [];
+    // Prevent dropping onto or past the Done column slot
+    if (cols[index]?.name === 'Done') return;
+    const newCols = [...cols];
     const draggedCol = newCols[draggingColIndex];
     newCols.splice(draggingColIndex, 1);
     newCols.splice(index, 0, draggedCol);
@@ -317,6 +346,20 @@ const BoardPage: React.FC = () => {
                           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                         </svg>
                       </button>
+                      <button
+                        className="btn btn--icon btn--small mt-1"
+                        style={{ marginLeft: '4px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', opacity: 0.6, color: '#ef4444' }}
+                        onClick={handleDeleteBoard}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+                        aria-label="Delete board"
+                        title="Delete board"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
                     </>
                   )}
                 </div>
@@ -379,23 +422,27 @@ const BoardPage: React.FC = () => {
                    </div>
                  ) : (
                    <div className="columns-container">
-                     {columns.map((col: Column, index: number) => (
+                     {columns.map((col: Column, index: number) => {
+                       const isDone = col.name === 'Done';
+                       return (
                        <div 
                          key={col.id}
-                         draggable
+                         draggable={!isDone}
                          onDragStart={(e) => handleDragStart(e, index)}
                          onDragEnter={() => handleDragEnter(index)}
                          onDragOver={handleDragOver}
                          onDragEnd={handleDragEnd}
+                         title={isDone ? 'The Done column is always last' : undefined}
                          style={{ 
                            transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)', 
-                           cursor: 'grab',
+                           cursor: isDone ? 'default' : 'grab',
                            opacity: draggingColIndex === index ? 0.8 : 1,
                            transform: draggingColIndex === index ? 'scale(0.98)' : 'scale(1)',
                            outline: draggingColIndex === index ? '2px dashed #3b82f6' : 'none',
                            outlineOffset: '4px',
                            borderRadius: '8px',
-                           zIndex: draggingColIndex === index ? 10 : 1
+                           zIndex: draggingColIndex === index ? 10 : 1,
+                           ...(isDone ? { borderBottom: '2px solid rgba(52, 211, 153, 0.4)' } : {})
                          }}
                        >
                          <ColumnCard 
@@ -421,7 +468,8 @@ const BoardPage: React.FC = () => {
                            onTaskDrop={handleTaskDrop}
                          />
                        </div>
-                     ))}
+                       );
+                     })}
                    </div>
                  )}
                </div>
