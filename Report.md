@@ -3,6 +3,7 @@
 **COP290: Design Practices in Computer Science**  
 **Project Name:** Task Board  
 **GitHub Repository:** [https://github.com/aaryannaidu/task_board](https://github.com/aaryannaidu/task_board)
+**Team:** Naman Kumar, U. Aaryan Naidu
 
 ---
 
@@ -22,14 +23,16 @@ The application allows users to create multiple projects, organize work into cus
 
 ## 2. Technology Stack
 
-| Layer          | Technology                                      |
-| -------------- | ----------------------------------------------- |
-| **Frontend**   | React 18, Vite, TypeScript, Vanilla CSS         |
-| **Backend**    | Node.js, Express.js, TypeScript                 |
-| **Database**   | PostgreSQL                                      |
-| **ORM**        | Prisma                                          |
-| **Auth**       | JWT (Access + Refresh Tokens), Bcrypt, Cookies  |
-| **Testing**    | Jest, ts-jest                                   |
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite, TypeScript, Vanilla CSS |
+| State Management | React Context + useReducer |
+| Drag and Drop | Native HTML5 Drag and Drop API |
+| Backend | Node.js, Express.js, TypeScript |
+| Database | PostgreSQL |
+| ORM | Prisma |
+| Authentication | JWT (Access + Refresh Tokens), bcrypt |
+| Testing | Jest, ts-jest, supertest |
 
 ---
 
@@ -55,113 +58,185 @@ The database schema is designed using Prisma to enforce strong relationships and
 
 ---
 
-## 4. API Documentation
+### 3.2 Key Design Decisions
 
-All API endpoints require authentication via JWT stored in an `httpOnly` cookie, with the exception of `/auth/login`, `/auth/register`, and `/auth/refresh`.
+**Role based access control** is implemented at two levels. Global roles (ADMIN/MEMBER) control who can create projects. Project roles (ADMIN/MEMBER/VIEWER) control what each member can do within a project.
 
-### 4.1 Authentication (`/api/auth`)
+**Cascade deletes** are used throughout. Deleting a project removes all its boards, columns, tasks, comments, audit logs, and notifications automatically.
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Registers a new user account. | No |
-| `POST` | `/api/auth/login` | Authenticates user and sets session cookies. | No |
-| `POST` | `/api/auth/logout` | Clears authentication cookies. | No |
-| `POST` | `/api/auth/refresh` | Generates a new access token using a refresh token. | No |
-| `GET` | `/api/auth/me` | Retrieves the profile of the logged-in user. | **Yes** |
+**Indexes** are placed on frequently queried columns — `columnID`, `assigneeID`, and `reporterID` in the Task model — for query performance.
 
-### 4.2 Users (`/api/users`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `PATCH`| `/api/users/me` | Updates the logged-in user's profile info. | **Yes** |
-| `GET`  | `/api/users` | Lists all users. | **Yes** (Admin) |
-| `GET`  | `/api/users/:id` | Detailed view of a specific user. | **Yes** (Admin) |
-
-### 4.3 Projects (`/api/projects`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET`  | `/api/projects` | Lists all projects the user is a member of. | **Yes** |
-| `POST` | `/api/projects` | Creates a new project. | **Yes** (Admin) |
-| `GET`  | `/api/projects/:id` | Returns project details. | **Yes** |
-| `PATCH`| `/api/projects/:id` | Updates project metadata. | **Yes** |
-| `PATCH`| `/api/projects/:id/archive` | Toggles project archive status. | **Yes** |
-| `GET`  | `/api/projects/:id/members` | Retrieves project member list. | **Yes** |
-| `POST` | `/api/projects/:id/members` | Adds a user to the project. | **Yes** |
-| `PATCH`| `/api/projects/:id/members/:userid` | Promotes/demotes a member's role. | **Yes** |
-| `DELETE`| `/api/projects/:id/members/:userid` | Removes a member from the project. | **Yes** |
-
-### 4.4 Boards & Columns (`/api/projects/:projectid/boards`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET`  | `/boards` | Lists all boards in the project. | **Yes** |
-| `POST` | `/boards` | Creates a new board. | **Yes** |
-| `PATCH`| `/boards/:boardid` | Updates the board details. | **Yes** |
-| `DELETE`| `/boards/:boardid` | Removes the board and its contents. | **Yes** |
-| `POST` | `/boards/:boardid/columns` | Adds a custom column to a board. | **Yes** |
-| `PATCH`| `/boards/:boardid/columns/reorder` | Updates the display order of columns. | **Yes** |
-| `PATCH`| `/boards/:boardid/columns/:columnid` | Updates column names or WIP limits. | **Yes** |
-| `DELETE`| `/boards/:boardid/columns/:columnid` | Deletes a column. | **Yes** |
-| `POST` | `/boards/:boardid/transitions` | Configures allowed sequential status moves. | **Yes** |
-| `DELETE`| `/boards/:boardid/transitions/:transitionid`| Deletes a workflow transition rule. | **Yes** |
-
-### 4.5 Tasks (`/api/projects/:projectid/tasks`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET`  | `/` | Fetches all tasks within the current project. | **Yes** |
-| `POST` | `/` | Creates a new Task, Bug, or Story. | **Yes** |
-| `GET`  | `/:taskid` | Returns details, comments, and audit logs. | **Yes** |
-| `PATCH`| `/:taskid` | Updates task fields. | **Yes** |
-| `POST` | `/:taskid/move` | Moves a task to a new column. | **Yes** |
-| `DELETE`| `/:taskid` | Removes a task. | **Yes** |
-
-### 4.6 Comments (`/api/projects/:projectid/tasks/:taskId/comments`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET`  | `/` | Lists all comments for a specific task. | **Yes** |
-| `POST` | `/` | Creates a new comment (triggers `@mentions`). | **Yes** |
-| `PATCH`| `/:commentid` | Edits an existing comment. | **Yes** |
-| `DELETE`| `/:commentid` | Deletes a comment. | **Yes** |
-
-### 4.7 Notifications (`/api/notifications`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET`  | `/` | Returns unread notifications for the user. | **Yes** |
-| `PATCH`| `/read-all` | Marks all notifications as read. | **Yes** |
-| `PATCH`| `/:notificationid/read` | Marks a specific notification as read. | **Yes** |
+**Self-referential relation** on Task allows Stories to have child Tasks and Bugs using `parentID`.
 
 ---
 
-## 5. Key Architecture & Design Decisions
+## 4. Backend Architecture
 
-### 5.1 Native Drag & Drop Implementation
-A strict constraint of the project was to avoid external drag-and-drop libraries. We implemented moving tasks across the Kanban board seamlessly utilizing the **native HTML5 Drag and Drop API** (`draggable`, `onDragStart`, `onDragOver`, `onDrop`). This significantly lowers bundle size and prevents bloated dependencies. 
+### 4.1 Project Structure
+```
+backend/src/
+├── auth/           ← auth routes
+├── controllers/    ← request handlers
+├── middleware/     ← authenticate, errorHandler
+├── routes/         ← all route definitions
+├── utils/          ← prisma, jwt, password helpers
+├── types/          ← TypeScript interfaces
+└── tests/          ← Jest unit tests
+```
+
+### 4.2 Authentication
+
+Authentication uses dual JWT tokens stored in HTTP-only cookies.
+
+- **Access token** — expires in 15 minutes, sent with every request
+- **Refresh token** — expires in 7 days, stored in database, used to issue new access tokens
+
+HTTP-only cookies prevent JavaScript from reading the tokens, protecting against XSS attacks. On logout, the refresh token is deleted from the database and both cookies are cleared.
+
+### 4.3 Middleware
+
+Two middleware files handle cross-cutting concerns:
+
+**authenticate.ts** — runs before every protected route. Reads the access token cookie, verifies the JWT signature, and attaches the user payload to `req.user`. Returns 401 if token is missing or invalid.
+
+**errorHandler.ts** — registered last in Express. Catches any unhandled errors and returns clean JSON instead of HTML crash pages.
+
+### 4.4 Key Business Logic
+
+**WIP Limits** — Before creating or moving a task into a column, the backend counts existing tasks in that column. If the count equals or exceeds the `wipLimit`, the request is rejected with 400.
+
+**Workflow Transitions** — Before moving a task, the backend checks the `WorkTransition` table for a row matching `boardID + fromStatus + toStatus`. If no row exists, the move is blocked with 400.
+
+**STORY rule** — Tasks of type STORY cannot be moved between columns. This is enforced in `moveTask` before any other checks.
+
+**Audit logging** — Every status change and assignee change creates an immutable row in `AuditLog` with the old value, new value, actor, and timestamp.
+
+**Notifications** — Four events trigger notifications: task assigned, status changed, comment added, @mention in comment.
+
+---
+
+
+## 5. Frontend Architecture
+
+### 5.1 Pages
+
+| Page | Description |
+|------|-------------|
+| Login | JWT authentication form |
+| Register | New account creation |
+| Projects | List of all user projects |
+| Project Detail | Boards and members overview |
+| Board / Kanban | Columns and task cards with drag and drop |
+| Task Detail | Full task view with comments and audit trail |
+| Profile | Avatar upload and name update |
+| Notifications | Notification list with mark as read |
 
 ### 5.2 State Management
-We strictly avoided state management libraries like Redux, Zustand, or MobX. Instead, global application state (like user authentication and board state) is managed purely through **React Context API combined with `useReducer`**. This maintains centralized logic while adhering to raw React principles.
 
-### 5.3 Enforced Workflow Integrity (WIP & Transitions)
-The backend does **not** rely on the frontend to enforce rules. Instead, moving a task via `PATCH .../move` strictly evaluates two core backend conditions:
-1. **Valid Workflow Transition**: The `WorkTransition` table is verified to ensure the requested `fromStatus` to `toStatus` shift is legally allowed on that board. An invalid move is outright blocked—not just warned.
-2. **Work-In-Progress (WIP) Limits**: The API immediately queries column population counts. If the target column has reached its explicitly defined `wipLimit`, the API responds with an unprocessable entity error and the move is rejected.
+Global state is managed using React Context combined with useReducer — no Redux or Zustand. The context stores authenticated user info, current project, and board state. All state updates go through typed reducer actions.
 
-### 5.4 Comprehensive Audit Trails
-Every significant lifecycle change in a task—ranging from column transfers and re-assignments to priority shifts—generates an immutable entry in the `AuditLog` table. This creates a highly transparent chronological history mapped directly to user actions, providing enterprise-level visibility over the task lifecycle.
+### 5.3 Drag and Drop
 
-### 5.5 Authentication Security Architecture
-Sessions completely decouple from generic client-side `localStorage`. Instead, authentication is managed using dual **JWT Tokens** (`AccessToken` + `RefreshToken`). These are immediately issued out into heavily restricted, secure `httpOnly` cookies—drastically limiting risk exposure from direct Cross-Site Scripting (XSS) attack vectors.
+Task movement is implemented using the native HTML5 Drag and Drop API without any external libraries. The `draggable` attribute, `onDragStart`, `onDragOver`, and `onDrop` event handlers manage the interaction. When a card is dropped on a column, the frontend calls `POST /tasks/:id/move` which enforces all backend rules before updating.
+
+### 5.4 API Communication
+
+All HTTP requests use the native `fetch()` API with `credentials: 'include'` to automatically send cookies. No Axios is used. A central utility handles request building and error parsing.
 
 ---
 
-## 6. Development Team
+## 6. Testing
 
-| Participant | Contributions | GitHub |
-| :--- | :--- | :--- |
+Backend unit tests are written with Jest and supertest. Three test files cover critical business logic.
+
+### 6.1 Test Coverage
+
+**auth.test.ts**
+- Register creates user successfully
+- Register returns 400 if email already taken
+- Register returns 400 if fields missing
+- Login succeeds with correct credentials
+- Login returns 401 with wrong password
+- Login returns 401 with wrong email
+- Logout clears cookies
+
+**task.test.ts**
+- Create task successfully
+- Returns 400 if title missing
+- Blocks task creation when WIP limit reached
+- Blocks moving a STORY task
+- Blocks move if transition not in WorkTransition table
+- Allows move when valid transition exists
+
+**project.test.ts**
+- Global Admin can create project
+- Member cannot create project — returns 403
+- Returns 400 if project name missing
+- Returns list of projects for logged in user
+- Returns 401 if not logged in
+- Admin can add member by email
+- Cannot add same member twice — returns 400
+- Member cannot add members — returns 403
+- Cannot remove last admin — returns 400
+- Admin can remove a regular member
+- Admin can update project name
+- Member cannot update project — returns 403
+- Admin can archive project
+- Admin can unarchive project
+
+### 6.2 Test Results
+```
+Test Suites: 3 passed, 3 total
+Tests:       29 passed, 0 failed
+```
+
+## 7. Assignment Requirements Checklist
+
+| Requirement | Status |
+|-------------|--------|
+| TypeScript strict mode | ✅ |
+| No Redux or Zustand | ✅ React Context + useReducer |
+| No Axios | ✅ Native fetch() |
+| No external drag and drop | ✅ Native HTML5 API |
+| JWT in HTTP-only cookies | ✅ |
+| WIP limits block moves | ✅ |
+| Workflow transitions enforced | ✅ |
+| STORY cannot be moved | ✅ |
+| Audit trail for status/assignee changes | ✅ |
+| Notifications persistent in DB | ✅ |
+| @mention in comments | ✅ |
+| Avatar upload | ✅ multer |
+| Backend unit tests mandatory | ✅ Jest |
+| Both teammates have GitHub commits | ✅ |
+| README with setup instructions | ✅ |
+
+---
+## 8. Challenges and Solutions
+
+**Prisma 7 compatibility** — The starter repo had Prisma 7 installed which changed how database URLs are configured. We resolved this by downgrading to Prisma 6 which uses the standard `schema.prisma` datasource URL configuration.
+
+**WorkTransition setup** — Transitions must be created manually after boards are created. We added default transition creation in the board controller so users do not have to set them up manually via API.
+
+**TypeScript strict mode** — With `strict: true` and `noUnusedLocals`, many common patterns required explicit typing. We used typed interfaces for all request bodies, typed the Express Request object globally using `express.d.ts`, and avoided `any` throughout.
+
+**Cookie based auth in tests** — Supertest does not automatically handle cookies between requests like a browser does. We solved this by extracting the `set-cookie` header after login and passing it explicitly in subsequent test requests.
+
+---
+
+## 9. Team Contributions
+
+| Member | Contributions |Github username |
+|--------|--------------|-----------------|
 | **Naman Kumar** | Backend Infrastructure, Database Schema & Relations, API Routes, Unit Testing | [@naman944](https://github.com/naman944) |
 | **U.Aaryan Naidu** | Frontend UI/UX, Component Architecture, Drag & Drop Logic, Global State Management | [@aaryannaidu](https://github.com/aaryannaidu) |
+
+---
+
+## 10. Conclusion
+
+Task Board successfully implements all mandatory assignment requirements including strict TypeScript, WIP limits, workflow transitions, audit trails, notifications, and comprehensive unit tests. The application demonstrates clean separation of concerns between frontend and backend, professional REST API design, and adherence to assignment constraints throughout.
+
+
+
 
 ---
