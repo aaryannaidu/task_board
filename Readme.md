@@ -9,7 +9,7 @@ A Jira-inspired project management and issue-tracking application built with Rea
 | Name | Role | GitHub |
 |------|------|--------|
 | Naman Kumar | Backend | @naman944 |
-| Aaryan Naidu | Frontend | @aaryannaidu |
+| U.Aaryan Naidu | Frontend | @aaryannaidu |
 
 ---
 
