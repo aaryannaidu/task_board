@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import type { Project, ProjectRole } from "../utils/types";
+import Avatar from "./Avatar";
 import "./css/ProjectCard.css";
 
 interface ProjectCardProps {
@@ -58,16 +59,14 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, currentUserRole }) =
         <div className="project-card__footer">
           <div className="project-card__avatars">
             {members.slice(0, 4).map((pm) => (
-              <span
+              <Avatar
                 key={pm.userID}
-                className="project-card__avatar"
-                title={pm.user.name}
-                style={{
-                  background: `hsl(${(pm.userID * 53) % 360}, 60%, 50%)`,
-                }}
-              >
-                {pm.user.name.charAt(0).toUpperCase()}
-              </span>
+                name={pm.user.name}
+                avatarUrl={pm.user.avatarUrl}
+                seed={pm.userID}
+                size={28}
+                style={{ border: '2px solid var(--bg-card, #1a1a2e)', marginLeft: '-6px' }}
+              />
             ))}
             {memberCount > 4 && (
               <span className="project-card__avatar project-card__avatar--overflow">

@@ -12,6 +12,7 @@ import { createBoard, createColumn } from "../utils/BoardApi";
 import { useAuth } from "../contexts/AuthContext";
 import BoardCard from "../components/BoardCard";
 import HeaderActions from "../components/HeaderActions";
+import Avatar from "../components/Avatar";
 import type { Project, ProjectRole } from "../utils/types";
 import "./css/project.css";
 
@@ -424,23 +425,17 @@ const ProjectPage: React.FC = () => {
 
                 <div className="members-list">
                   {members.map((pm) => {
-                    const initials = pm.user.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase();
-                    const hue = (pm.userID * 53) % 360;
 
                     return (
                       <div key={pm.userID} className="member-row">
-                        <div
+                        <Avatar
+                          name={pm.user.name}
+                          avatarUrl={pm.user.avatarUrl}
+                          seed={pm.userID}
+                          size={40}
                           className="member-row__avatar"
-                          style={{ background: `hsl(${hue}, 60%, 48%)` }}
-                          title={pm.user.name}
-                        >
-                          {initials}
-                        </div>
+                          style={{ border: 'none', background: pm.user.avatarUrl ? 'transparent' : `hsl(${(pm.userID * 53) % 360}, 60%, 45%)` }}
+                        />
                         <div className="member-row__info">
                           <span className="member-row__name">{pm.user.name}</span>
                           <span className="member-row__email">{pm.user.email}</span>

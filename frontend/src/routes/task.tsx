@@ -4,6 +4,7 @@ import { getTaskById, deleteTask, updateTask, moveTask } from "../utils/TaskApi"
 import { getComments, createComment, updateComment, deleteComment } from "../utils/CommentApi";
 import { getProjectMembers } from "../utils/ProjectApi";
 import { getBoards } from "../utils/BoardApi";
+import Avatar from "../components/Avatar";
 import type { Task, Comment, ProjectMember, Priority, Column } from "../utils/types";
 import "./css/task.css";
 
@@ -328,7 +329,13 @@ export default function TaskPage() {
                                                 className="mention-dropdown__item"
                                                 onMouseDown={(e) => { e.preventDefault(); insertMention(m.user.name); }}
                                             >
-                                                <div className="mention-avatar">{m.user.name.charAt(0).toUpperCase()}</div>
+                                                <Avatar
+                                                    name={m.user.name}
+                                                    avatarUrl={m.user.avatarUrl}
+                                                    seed={m.userID}
+                                                    size={28}
+                                                    className="mention-avatar"
+                                                />
                                                 <span>{m.user.name}</span>
                                             </li>
                                         ))}
@@ -351,9 +358,13 @@ export default function TaskPage() {
                         <div className="activity-list">
                             {comments.map(comment => (
                                 <div key={comment.id} className="activity-item activity-item--comment">
-                                    <div className="activity-avatar">
-                                        {comment.author ? comment.author.name.charAt(0).toUpperCase() : "U"}
-                                    </div>
+                                    <Avatar
+                                        name={comment.author?.name ?? "User"}
+                                        avatarUrl={comment.author?.avatarUrl}
+                                        seed={comment.author?.id}
+                                        size={36}
+                                        className="activity-avatar"
+                                    />
                                     <div className="activity-details activity-details--flex">
                                         <div className="comment-header">
                                             <strong>{comment.author?.name || "User"}</strong>
@@ -388,9 +399,13 @@ export default function TaskPage() {
 
                             {/* "Created" system entry at the bottom as a log */}
                             <div className="activity-item activity-item--system">
-                                <div className="activity-avatar">
-                                    {task.reporter ? task.reporter.name.charAt(0).toUpperCase() : "U"}
-                                </div>
+                                <Avatar
+                                    name={task.reporter?.name ?? "Unknown"}
+                                    avatarUrl={(task.reporter as any)?.avatarUrl}
+                                    seed={task.reporter?.id}
+                                    size={36}
+                                    className="activity-avatar"
+                                />
                                 <div className="activity-details">
                                     <p><strong>{task.reporter?.name || "Unknown"}</strong> created this task</p>
                                     <span>{new Date(task.createdAt).toLocaleString()}</span>
@@ -459,7 +474,13 @@ export default function TaskPage() {
                             <div className="sidebar-user">
                                 {task.assignee ? (
                                     <>
-                                        <div className="user-avatar">{task.assignee.name.charAt(0).toUpperCase()}</div>
+                                        <Avatar
+                                            name={task.assignee.name}
+                                            avatarUrl={task.assignee.avatarUrl}
+                                            seed={task.assignee.id}
+                                            size={32}
+                                            className="user-avatar"
+                                        />
                                         <span>{task.assignee.name}</span>
                                     </>
                                 ) : (
@@ -481,7 +502,13 @@ export default function TaskPage() {
                         <div className="sidebar-user">
                             {task.reporter ? (
                                 <>
-                                    <div className="user-avatar">{task.reporter.name.charAt(0).toUpperCase()}</div>
+                                    <Avatar
+                                        name={task.reporter.name}
+                                        avatarUrl={(task.reporter as any)?.avatarUrl}
+                                        seed={task.reporter.id}
+                                        size={32}
+                                        className="user-avatar"
+                                    />
                                     <span>{task.reporter.name}</span>
                                 </>
                             ) : (

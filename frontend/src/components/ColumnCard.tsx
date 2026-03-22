@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Column, Task } from '../utils/types';
+import Avatar from './Avatar';
 
 interface ColumnCardProps {
   column: Column;
@@ -38,7 +39,17 @@ const TaskCard = ({ task, onClick }: { task: Task; onClick?: () => void }) => (
         </svg>
         <span>{task.id}</span>
       </div>
-      <img src={task.assignee?.avatarUrl || `https://ui-avatars.com/api/?name=${task.assignee?.name || 'Unassigned'}&background=random`} alt="Assignee" className="task-avatar" />
+      {task.assignee ? (
+          <Avatar
+            name={task.assignee.name}
+            avatarUrl={task.assignee.avatarUrl}
+            seed={task.assignee.id}
+            size={24}
+            title={task.assignee.name}
+          />
+        ) : (
+          <span style={{ fontSize: '0.65rem', color: '#666', fontStyle: 'italic' }}>Unassigned</span>
+        )}
     </div>
   </div>
 );
