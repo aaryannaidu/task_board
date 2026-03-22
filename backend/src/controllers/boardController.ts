@@ -27,10 +27,51 @@ export async function createboard(req:Request,res:Response):Promise<void>{
             res.status(403).json({error:"Only admins can create boards"});
             return;
         }
-        const board = await prisma.board.create({
-            data:{name,projectID:projectid}
+
+        // Create board + default columns + default transitions in one atomic transaction
+        const defaultColumns = [
+            { name: 'To Do',      order: 1 },
+            { name: 'In Progress', order: 2 },
+            { name: 'Review',     order: 3 },
+            { name: 'Done',       order: 4 },
+        ];
+
+        const board = await prisma.$transaction(async (tx) => {
+            const newBoard = await tx.board.create({
+                data: { name, projectID: projectid }
+            });
+
+            // Create the 4 default columns
+            const createdCols = await Promise.all(
+                defaultColumns.map(col =>
+                    tx.column.create({
+                        data: { name: col.name, order: col.order, boardID: newBoard.id }
+                    })
+                )
+            );
+
+            // Seed sequential transitions between every adjacent pair of columns
+            const transitions: { fromStatus: string; toStatus: string }[] = [];
+            for (let i = 0; i < createdCols.length - 1; i++) {
+                transitions.push({
+                    fromStatus: createdCols[i].name,
+                    toStatus:   createdCols[i + 1].name,
+                });
+            }
+
+            await tx.workTransition.createMany({
+                data: transitions.map(t => ({ ...t, boardID: newBoard.id }))
+            });
+
+            return newBoard;
         });
-        res.status(201).json(board);
+
+        // Return the full board with columns and transitions
+        const fullBoard = await prisma.board.findUnique({
+            where: { id: board.id },
+            include: { columns: { orderBy: { order: 'asc' } }, transitions: true }
+        });
+        res.status(201).json(fullBoard);
     }
     catch(error:unknown){
         res.status(500).json({error:"Server error, please try again"});

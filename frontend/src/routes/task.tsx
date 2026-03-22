@@ -5,7 +5,7 @@ import { getComments, createComment, updateComment, deleteComment } from "../uti
 import { getProjectMembers } from "../utils/ProjectApi";
 import { getBoards } from "../utils/BoardApi";
 import Avatar from "../components/Avatar";
-import type { Task, Comment, ProjectMember, Priority, Column } from "../utils/types";
+import type { Task, Comment, ProjectMember, Priority, Column, WorkTransition } from "../utils/types";
 import "./css/task.css";
 
 export default function TaskPage() {
@@ -17,6 +17,7 @@ export default function TaskPage() {
 
     // ── Columns state (for moving task) ──────────────────────────────────────
     const [availableColumns, setAvailableColumns] = useState<Column[]>([]);
+    const [availableTransitions, setAvailableTransitions] = useState<WorkTransition[]>([]);
 
     // ── Edit mode ────────────────────────────────────────────────────────────
     const [editMode, setEditMode] = useState(false);
@@ -39,8 +40,20 @@ export default function TaskPage() {
     // ── @ mention state ──────────────────────────────────────────────────────
     const [members, setMembers] = useState<ProjectMember[]>([]);
     const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-    const [mentionDropdownPos, setMentionDropdownPos] = useState<number>(0);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const editorRef = useRef<HTMLDivElement>(null);
+
+    // Link modal state
+    const [linkModalOpen, setLinkModalOpen] = useState(false);
+    const [linkUrl, setLinkUrl] = useState("");
+    const [linkText, setLinkText] = useState("");
+    const savedRangeRef = useRef<Range | null>(null);
+
+    const [activeFormats, setActiveFormats] = useState({
+        bold: false,
+        italic: false,
+        list: false,
+        code: false,
+    });
 
     const projectId = parseInt(projectIdStr || "0", 10);
     const taskId = parseInt(taskIdStr || "0", 10);
@@ -57,10 +70,10 @@ export default function TaskPage() {
                 setTask(t);
                 setComments(c);
                 setMembers(m);
-                // Find which board contains this task's column
                 for (const board of boards) {
                     if (board.columns?.some(col => col.id === t.columnID)) {
                         setAvailableColumns(board.columns || []);
+                        setAvailableTransitions(board.transitions || []);
                         break;
                     }
                 }
@@ -115,29 +128,121 @@ export default function TaskPage() {
     };
 
     // ── @ mention logic ──────────────────────────────────────────────────────
-    const handleCommentInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const val = e.target.value;
-        setCommentText(val);
-        const cursorPos = e.target.selectionStart;
-        const textUpToCursor = val.slice(0, cursorPos);
-        const atIndex = textUpToCursor.lastIndexOf("@");
-        if (atIndex !== -1) {
-            const query = textUpToCursor.slice(atIndex + 1);
-            if (!query.includes(" ")) {
-                setMentionQuery(query);
-                setMentionDropdownPos(atIndex);
-                return;
+
+    const updateFormattingState = () => {
+        const sel = window.getSelection();
+        let isCode = false;
+        if (sel && sel.focusNode) {
+            let node: Node | null = sel.focusNode;
+            while (node && node !== editorRef.current) {
+                if (node.nodeName === 'CODE') {
+                    isCode = true;
+                    break;
+                }
+                node = node.parentNode;
             }
         }
-        setMentionQuery(null);
+        
+        setActiveFormats({
+            bold: document.queryCommandState('bold'),
+            italic: document.queryCommandState('italic'),
+            list: document.queryCommandState('insertUnorderedList'),
+            code: isCode
+        });
+    };
+
+    const toggleCode = () => {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+
+        let targetNode: Node | null = sel.focusNode;
+        let codeNode: HTMLElement | null = null;
+        while (targetNode && targetNode !== editorRef.current) {
+            if (targetNode.nodeName === 'CODE') {
+                codeNode = targetNode as HTMLElement;
+                break;
+            }
+            targetNode = targetNode.parentNode;
+        }
+
+        if (codeNode) {
+            // Unwrap the code tag
+            const fragment = document.createDocumentFragment();
+            while (codeNode.firstChild) {
+                fragment.appendChild(codeNode.firstChild);
+            }
+            codeNode.parentNode?.replaceChild(fragment, codeNode);
+        } else {
+            const textToCode = sel.toString();
+            if (textToCode) {
+                document.execCommand('insertHTML', false, `<code>${textToCode}</code>`);
+            } else {
+                const codeEl = document.createElement('code');
+                codeEl.appendChild(document.createTextNode('\u200B'));
+                const range = sel.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(codeEl);
+                range.setStart(codeEl.firstChild!, 1);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        }
+        updateFormattingState();
+    };
+
+    const openLinkModal = () => {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+            savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+            setLinkText(sel.toString());
+        } else {
+            savedRangeRef.current = null;
+            setLinkText("");
+        }
+        setLinkUrl("");
+        setLinkModalOpen(true);
+    };
+
+    const confirmLink = () => {
+        if (!linkUrl) {
+            setLinkModalOpen(false);
+            return;
+        }
+
+        editorRef.current?.focus();
+        const sel = window.getSelection();
+        if (savedRangeRef.current && sel) {
+            sel.removeAllRanges();
+            sel.addRange(savedRangeRef.current);
+        }
+
+        // Insert hyperlink natively using HTML
+        const aHtml = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${linkText || linkUrl}</a>`;
+        document.execCommand('insertHTML', false, aHtml);
+
+        if (editorRef.current) setCommentText(editorRef.current.innerHTML);
+        setLinkModalOpen(false);
+        updateFormattingState();
     };
 
     const insertMention = (name: string) => {
-        const before = commentText.slice(0, mentionDropdownPos);
-        const after = commentText.slice(mentionDropdownPos + 1 + (mentionQuery?.length ?? 0));
-        setCommentText(`${before}@${name} ${after}`);
+        const sel = window.getSelection();
+        if (sel && sel.focusNode && sel.focusNode.nodeType === 3) {
+            const text = sel.focusNode.nodeValue || "";
+            const matchIndex = text.search(/@\w*$/);
+            if (matchIndex !== -1) {
+                sel.focusNode.nodeValue = text.slice(0, matchIndex) + `@${name}\u00A0`;
+                const range = document.createRange();
+                range.setStart(sel.focusNode, matchIndex + name.length + 2);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        }
+        if (editorRef.current) setCommentText(editorRef.current.innerHTML);
         setMentionQuery(null);
-        textareaRef.current?.focus();
+        editorRef.current?.focus();
     };
 
     const filteredMembers = mentionQuery !== null
@@ -146,12 +251,17 @@ export default function TaskPage() {
 
     // ── Comment CRUD ─────────────────────────────────────────────────────────
     const handleSubmitComment = async () => {
-        if (!commentText.trim()) return;
+        // Strip out HTML tags just for the empty check
+        const plainText = commentText.replace(/<[^>]+>/g, '').trim();
+        if (!plainText) return;
         setSubmittingComment(true);
         try {
-            const created = await createComment(projectId, taskId, commentText.trim());
+            const created = await createComment(projectId, taskId, commentText);
             setComments(prev => [...prev, created]);
             setCommentText("");
+            if (editorRef.current) {
+                editorRef.current.innerHTML = "";
+            }
         } catch (err: any) {
             alert(err.message || "Failed to post comment");
         } finally {
@@ -191,13 +301,26 @@ export default function TaskPage() {
         }
     };
 
-    const renderCommentContent = (content: string) => {
-        const parts = content.split(/(@\w+)/g);
-        return parts.map((part, i) =>
-            part.startsWith("@")
-                ? <span key={i} className="mention-highlight">{part}</span>
-                : part
-        );
+    const handleCloseTask = async () => {
+        if (!task) return;
+        if (!task.resolveAt) {
+            alert("Task must be resolved (in Done column) before it can be closed.");
+            return;
+        }
+        if (!window.confirm("Mark this task as closed? This action indicates the task is fully complete.")) return;
+        try {
+            const updated = await updateTask(projectId, taskId, { closedAt: new Date().toISOString() });
+            setTask(prev => prev ? { ...prev, closedAt: updated.closedAt } : prev);
+        } catch (err: any) {
+            alert(err.message || "Failed to close task");
+        }
+    };
+
+    const renderCommentContentHTML = (content: string) => {
+        // Simple mention highlighter that avoids touching HTML attributes. 
+        // In a complex app we'd use a real parser. 
+        const highlighted = content.replace(/(?<!=["'])(@\w+)/g, '<span class="mention-highlight">$1</span>');
+        return highlighted;
     };
 
     if (loading) return <div className="task-page-loading">Loading task details...</div>;
@@ -218,13 +341,24 @@ export default function TaskPage() {
                             <button className="cancel-edit-btn" onClick={cancelEdit}>Cancel</button>
                         </>
                     ) : (
-                        <button className="edit-mode-btn" onClick={enterEditMode}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                            Edit Task
-                        </button>
+                        <>
+                            {task.resolveAt && !task.closedAt && (
+                                <button className="close-task-btn" onClick={handleCloseTask}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                        <polyline points="22 4 12 14.01 9 11.01" />
+                                    </svg>
+                                    Close Task
+                                </button>
+                            )}
+                            <button className="edit-mode-btn" onClick={enterEditMode}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                Edit Task
+                            </button>
+                        </>
                     )}
                     <button className="delete-btn" onClick={handleDeleteTask}>Delete</button>
                 </div>
@@ -306,12 +440,42 @@ export default function TaskPage() {
                         {/* Comment input */}
                         <div className="comment-composer">
                             <div className="comment-composer__input-wrap">
-                                <textarea
-                                    ref={textareaRef}
-                                    className="comment-textarea"
-                                    placeholder="Add a comment… type @ to mention a teammate"
-                                    value={commentText}
-                                    onChange={handleCommentInput}
+                            <div className="rich-text-editor-wrap">
+                                <div className="rte-toolbar">
+                                    <button onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold', false); updateFormattingState(); }} title="Bold" className={`rte-btn ${activeFormats.bold ? 'active' : ''}`}><b>B</b></button>
+                                    <button onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic', false); updateFormattingState(); }} title="Italic" className={`rte-btn ${activeFormats.italic ? 'active' : ''}`}><i>I</i></button>
+                                    <button onMouseDown={(e) => { 
+                                        e.preventDefault(); 
+                                        toggleCode();
+                                    }} title="Code" className={`rte-btn ${activeFormats.code ? 'active' : ''}`}>&lt;/&gt;</button>
+                                    <button onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList', false); updateFormattingState(); }} title="List" className={`rte-btn ${activeFormats.list ? 'active' : ''}`}>•</button>
+                                    <button onMouseDown={(e) => { 
+                                        e.preventDefault(); 
+                                        openLinkModal();
+                                    }} title="Link" className="rte-btn">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                                    </button>
+                                </div>
+                                <div
+                                    ref={editorRef}
+                                    className="comment-contenteditable"
+                                    contentEditable
+                                    onInput={(e) => {
+                                        setCommentText(e.currentTarget.innerHTML);
+                                        updateFormattingState();
+                                        const sel = window.getSelection();
+                                        if (sel && sel.focusNode && sel.focusNode.nodeType === 3) {
+                                            const text = sel.focusNode.nodeValue?.slice(0, sel.focusOffset) || "";
+                                            const match = text.match(/@(\w*)$/);
+                                            if (match) {
+                                                setMentionQuery(match[1]);
+                                                return;
+                                            }
+                                        }
+                                        setMentionQuery(null);
+                                    }}
+                                    onKeyUp={updateFormattingState}
+                                    onMouseUp={updateFormattingState}
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                                             e.preventDefault();
@@ -319,8 +483,39 @@ export default function TaskPage() {
                                         }
                                         if (e.key === "Escape") setMentionQuery(null);
                                     }}
-                                    rows={3}
+                                    data-placeholder="Add a comment… Use @name to mention"
                                 />
+                                
+                                {linkModalOpen && (
+                                    <div className="rte-link-modal-overlay" onMouseDown={(e) => {
+                                        if (e.target === e.currentTarget) {
+                                            e.preventDefault();
+                                            setLinkModalOpen(false);
+                                        }
+                                    }}>
+                                        <div className="rte-link-modal">
+                                            <div className="rte-lm-header">Add Link</div>
+                                            <input 
+                                                className="rte-lm-input" 
+                                                placeholder="Text to display" 
+                                                value={linkText} 
+                                                onChange={e => setLinkText(e.target.value)} 
+                                            />
+                                            <input 
+                                                className="rte-lm-input" 
+                                                placeholder="URL (e.g. https://google.com)" 
+                                                value={linkUrl} 
+                                                onChange={e => setLinkUrl(e.target.value)}
+                                                autoFocus
+                                            />
+                                            <div className="rte-lm-actions">
+                                                <button className="rte-lm-btn-cancel" onClick={(e) => { e.preventDefault(); setLinkModalOpen(false); }}>Cancel</button>
+                                                <button className="rte-lm-btn-save" onClick={(e) => { e.preventDefault(); confirmLink(); }}>Save</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                                 {mentionQuery !== null && filteredMembers.length > 0 && (
                                     <ul className="mention-dropdown">
                                         {filteredMembers.map(m => (
@@ -386,7 +581,10 @@ export default function TaskPage() {
                                             </div>
                                         ) : (
                                             <>
-                                                <p className="comment-body">{renderCommentContent(comment.content)}</p>
+                                                <div 
+                                                    className="comment-body" 
+                                                    dangerouslySetInnerHTML={{ __html: renderCommentContentHTML(comment.content) }} 
+                                                />
                                                 <div className="comment-meta-actions">
                                                     <button className="comment-action-btn" onClick={() => { setEditingCommentId(comment.id); setEditCommentText(comment.content); }}>Edit</button>
                                                     <button className="comment-action-btn comment-action-btn--danger" onClick={() => handleDeleteComment(comment.id)}>Delete</button>
@@ -420,15 +618,35 @@ export default function TaskPage() {
                     <div className="sidebar-group">
                         <label>STATUS</label>
                         {editMode && task.type !== "STORY" ? (
-                            <select
-                                className="sidebar-select"
-                                value={editStatusColumnId}
-                                onChange={e => setEditStatusColumnId(e.target.value)}
-                            >
-                                {availableColumns.map(col => (
-                                    <option key={col.id} value={col.id}>{col.name}</option>
-                                ))}
-                            </select>
+                            (() => {
+                                // Only show the current column + columns reachable via a valid transition
+                                const validToStatuses = new Set(
+                                    availableTransitions
+                                        .filter(t => t.fromStatus === task.status)
+                                        .map(t => t.toStatus)
+                                );
+                                const allowedCols = availableColumns.filter(
+                                    col => col.id === task.columnID || validToStatuses.has(col.name)
+                                );
+                                return (
+                                    <>
+                                        <select
+                                            className="sidebar-select"
+                                            value={editStatusColumnId}
+                                            onChange={e => setEditStatusColumnId(e.target.value)}
+                                        >
+                                            {allowedCols.map(col => (
+                                                <option key={col.id} value={col.id}>{col.name}</option>
+                                            ))}
+                                        </select>
+                                        {allowedCols.length <= 1 && (
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--text-gray)', marginTop: '4px' }}>
+                                                No further transitions defined for this status.
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()
                         ) : (
                             <div className="sidebar-value status-badge">{task.status}</div>
                         )}
@@ -542,6 +760,43 @@ export default function TaskPage() {
                         <label>UPDATED</label>
                         <div className="sidebar-value date-val">{new Date(task.updatedAt).toLocaleString()}</div>
                     </div>
+
+                    {task.resolveAt && (
+                        <div className="sidebar-group">
+                            <label>RESOLVED</label>
+                            <div className="sidebar-value date-val resolved-val">{new Date(task.resolveAt).toLocaleString()}</div>
+                        </div>
+                    )}
+
+                    {task.closedAt && (
+                        <div className="sidebar-group">
+                            <label>CLOSED</label>
+                            <div className="sidebar-value date-val closed-val">{new Date(task.closedAt).toLocaleString()}</div>
+                        </div>
+                    )}
+
+                    {/* ── Resolved / Closed status banner ── */}
+                    {task.resolveAt && (
+                        <div className={`task-lifecycle-banner ${task.closedAt ? 'banner--closed' : 'banner--resolved'}`}>
+                            {task.closedAt ? (
+                                <>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                    <span>This task is <strong>closed</strong>.</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                        <polyline points="22 4 12 14.01 9 11.01"/>
+                                    </svg>
+                                    <span>Task is <strong>resolved</strong>. Click <em>Close Task</em> to archive it.</span>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

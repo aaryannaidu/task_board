@@ -53,6 +53,68 @@
   transform: none;
 }
 
+/* ── Close Task button ────────────────────────────────────────────────────── */
+.close-task-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+.close-task-btn:hover {
+  background: #34d399;
+  color: #062318;
+  transform: none;
+  box-shadow: 0 0 14px rgba(52, 211, 153, 0.35);
+}
+
+/* ── Resolved / Closed sidebar date values ─────────────────────────────────── */
+.resolved-val {
+  color: #34d399 !important;
+  font-weight: 600;
+}
+.closed-val {
+  color: #a78bfa !important;
+  font-weight: 600;
+}
+
+/* ── Lifecycle banner (bottom of sidebar) ──────────────────────────────────── */
+.task-lifecycle-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin-top: 4px;
+  border: 1px solid;
+}
+.task-lifecycle-banner strong { font-weight: 700; }
+.task-lifecycle-banner em { font-style: italic; opacity: 0.85; }
+
+.banner--resolved {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.25);
+  color: #6ee7b7;
+}
+.banner--resolved svg { color: #34d399; flex-shrink: 0; }
+
+.banner--closed {
+  background: rgba(167, 139, 250, 0.08);
+  border-color: rgba(167, 139, 250, 0.25);
+  color: #c4b5fd;
+}
+.banner--closed svg { color: #a78bfa; flex-shrink: 0; }
+
 .task-content {
   display: flex;
   gap: 2rem;
@@ -510,6 +572,182 @@
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.rich-text-editor-wrap {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.rich-text-editor-wrap:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.rte-toolbar {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255,255,255, 0.05);
+}
+
+.rte-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-gray);
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.rte-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-white);
+}
+
+.rte-btn.active {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.comment-contenteditable {
+  padding: 0.75rem 1rem;
+  min-height: 80px;
+  max-height: 300px;
+  overflow-y: auto;
+  color: var(--text-white);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.comment-contenteditable:focus {
+  outline: none;
+}
+
+.comment-contenteditable:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-gray);
+  pointer-events: none;
+  display: block;
+}
+
+.comment-body code,
+.comment-contenteditable code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.15rem 0.3rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  color: #fbbf24;
+}
+
+.comment-body ul,
+.comment-contenteditable ul {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.comment-body a,
+.comment-contenteditable a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+/* ─── RTE Link Modal ───────────────────────────────────────────────────────── */
+
+.rte-link-modal-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  border-radius: 0.6rem;
+}
+
+.rte-link-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  width: 90%;
+  max-width: 320px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rte-lm-header {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-white);
+  margin-bottom: 0.25rem;
+}
+
+.rte-lm-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--text-white);
+  font-size: 0.85rem;
+}
+
+.rte-lm-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.rte-lm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.rte-lm-btn-cancel,
+.rte-lm-btn-save {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  border-radius: 0.4rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rte-lm-btn-cancel {
+  background: transparent;
+  color: var(--text-gray);
+  border: 1px solid transparent;
+}
+
+.rte-lm-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rte-lm-btn-save {
+  background: var(--primary);
+  color: white;
+  border: none;
+}
+
+.rte-lm-btn-save:hover {
+  background: #6366f1;
 }
 
 .comment-textarea--edit {

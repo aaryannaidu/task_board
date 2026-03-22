@@ -27,7 +27,8 @@ export type UpdateTaskBody = {
     status?: string,
     prioroity?: 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL',
     assigneeId?: number,
-    dueDate?: string
+    dueDate?: string,
+    closedAt?: string | null
 }
 export type MoveTaskBody = {
     columnId: number,

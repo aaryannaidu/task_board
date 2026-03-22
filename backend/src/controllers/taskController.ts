@@ -200,7 +200,7 @@ export async function gettaskbyid(req:Request,res:Response):Promise<void>{
 export async function updatetask(req:Request,res:Response):Promise<void>{
     try {
         const taskid= parseInt(req.params.taskid as string);
-        const{title,description,prioroity,assigneeId,dueDate}= req.body as UpdateTaskBody;
+        const{title,description,prioroity,assigneeId,dueDate,closedAt}= req.body as UpdateTaskBody;
 
         const task=await prisma.task.findUnique({ where:{ id:taskid }});
         if(!task){
@@ -256,9 +256,24 @@ export async function updatetask(req:Request,res:Response):Promise<void>{
                 description:description ?? task?.description,
                 priority:prioroity ?? task?.priority,
                 assigneeID:assigneeId ?? task?.assigneeID,
-                dueDate:dueDate ?? task?.dueDate
+                dueDate:dueDate ?? task?.dueDate,
+                closedAt: closedAt !== undefined ? (closedAt ? new Date(closedAt) : null) : task?.closedAt
             }
         });
+
+        // Log close event if closedAt was just set
+        if (closedAt && !task?.closedAt) {
+            await prisma.auditLog.create({
+                data: {
+                    taskID: taskid,
+                    actorId: req.user!.userID,
+                    eventtype: "STATUS_CHANGE",
+                    oldValue: task?.status ?? "",
+                    newValue: "CLOSED"
+                }
+            });
+        }
+
         res.status(200).json(updated);
     }
     catch(error:unknown){
@@ -332,11 +347,6 @@ export async function movetask(req:Request,res:Response):Promise<void>{
         }
         if (!currentColumn) {
             res.status(404).json({error:"Current Column Not Found"});
-            return;
-        }
-
-        if (targetcolumn.order <= currentColumn.order) {
-            res.status(400).json({error:"Tasks can only be moved from left to right (forward)"});
             return;
         }
         await prisma.auditLog.create({

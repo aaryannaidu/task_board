@@ -162,6 +162,7 @@ export interface UpdateTaskBody {
   prioroity?: Priority;
   assigneeId?: number;
   dueDate?: string;
+  closedAt?: string | null;
 }
 
 export interface MoveTaskBody {

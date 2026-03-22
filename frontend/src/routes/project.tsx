@@ -8,7 +8,7 @@ import {
   changeMemberRole, 
   removeMember 
 } from "../utils/ProjectApi";
-import { createBoard, createColumn } from "../utils/BoardApi";
+import { createBoard } from "../utils/BoardApi";
 import { useAuth } from "../contexts/AuthContext";
 import BoardCard from "../components/BoardCard";
 import HeaderActions from "../components/HeaderActions";
@@ -78,10 +78,7 @@ const ProjectPage: React.FC = () => {
 
   const [settingsForm, setSettingsForm] = useState({ name: "", description: "" });
   const [addMemberForm, setAddMemberForm] = useState({ email: "", role: "MEMBER" as ProjectRole });
-  const [createBoardForm, setCreateBoardForm] = useState({
-    name: "",
-    columns: ["To Do", "In Progress", "In Review", "Done"]
-  });
+  const [createBoardForm, setCreateBoardForm] = useState({ name: "" });
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -221,28 +218,15 @@ const ProjectPage: React.FC = () => {
       setActionError("Board name is required");
       return;
     }
-    if (createBoardForm.columns.some(c => !c.trim())) {
-      setActionError("All column names must be filled");
-      return;
-    }
 
     setIsProcessing(true);
     setActionError(null);
     try {
-      const newBoard = await createBoard(projectId, { name: createBoardForm.name.trim() });
-      
-      for (let i = 0; i < createBoardForm.columns.length; i++) {
-        await createColumn(projectId, newBoard.id, { 
-          name: createBoardForm.columns[i].trim(),
-          order: i + 1 
-        });
-      }
-      
+      await createBoard(projectId, { name: createBoardForm.name.trim() });
       const updated = await getProjectDetails(projectId);
       dispatch({ type: "FETCH_OK", project: updated });
-      
       setShowCreateBoard(false);
-      setCreateBoardForm({ name: "", columns: ["To Do", "In Progress", "In Review", "Done"] });
+      setCreateBoardForm({ name: "" });
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : "Failed to create board");
     } finally {
@@ -584,7 +568,6 @@ const ProjectPage: React.FC = () => {
               </div>
             )}
 
-            {/* ── Create Board Modal ── */}
             {showCreateBoard && (
               <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && setShowCreateBoard(false)}>
                 <div className="modal">
@@ -593,7 +576,7 @@ const ProjectPage: React.FC = () => {
 
                   <form className="form" onSubmit={handleCreateBoard}>
                     {actionError && <div className="form__error">{actionError}</div>}
-                    
+
                     <div className="form__group">
                       <label htmlFor="board-name">Board Name</label>
                       <input
@@ -602,65 +585,23 @@ const ProjectPage: React.FC = () => {
                         className="input"
                         placeholder="e.g. Sprint Tracking"
                         value={createBoardForm.name}
-                        onChange={(e) => setCreateBoardForm({ ...createBoardForm, name: e.target.value })}
+                        onChange={(e) => setCreateBoardForm({ name: e.target.value })}
                         required
                         disabled={isProcessing}
+                        autoFocus
                       />
                     </div>
 
-                    <div className="form__group">
-                      <label>How do you track work?</label>
-                      <p className="form-info" style={{marginTop: '0.25rem'}}>As you complete work, it moves through these statuses.</p>
-                      
-                      <div className="column-inputs" style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem'}}>
-                        {createBoardForm.columns.map((col, idx) => (
-                          <div key={idx} style={{display: 'flex', gap: '0.5rem'}}>
-                            <input
-                              type="text"
-                              className="input"
-                              value={col}
-                              onChange={(e) => {
-                                const newCols = [...createBoardForm.columns];
-                                newCols[idx] = e.target.value;
-                                setCreateBoardForm({ ...createBoardForm, columns: newCols });
-                              }}
-                              required
-                              disabled={isProcessing}
-                            />
-                            <button 
-                              type="button" 
-                              className="btn btn--secondary btn--icon"
-                              style={{padding: '0 0.75rem'}}
-                              onClick={() => {
-                                 const newCols = createBoardForm.columns.filter((_, i) => i !== idx);
-                                 setCreateBoardForm({ ...createBoardForm, columns: newCols });
-                              }}
-                              disabled={isProcessing || createBoardForm.columns.length <= 1}
-                              aria-label="Remove status"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                        
-                        <button 
-                          type="button" 
-                          className="btn btn--secondary" 
-                          style={{alignSelf: 'flex-start', marginTop: '0.5rem', border: 'none', background: 'transparent', paddingLeft: 0, fontWeight: 600}}
-                          onClick={() => setCreateBoardForm(prev => ({ ...prev, columns: [...prev.columns, "New Status"] }))}
-                          disabled={isProcessing}
-                        >
-                          + Add status
-                        </button>
-                      </div>
-                    </div>
+                    <p className="form-info" style={{ marginTop: '0.75rem' }}>
+                      A default workflow with columns <strong>To Do → In Progress → Review → Done</strong> will be created automatically.
+                    </p>
 
                     <div className="modal__actions">
                       <button type="button" className="btn btn--secondary" onClick={() => setShowCreateBoard(false)} disabled={isProcessing}>
                         Cancel
                       </button>
                       <button type="submit" className="btn btn--primary" disabled={isProcessing}>
-                        Finish
+                        {isProcessing ? "Creating…" : "Create Board"}
                       </button>
                     </div>
                   </form>
