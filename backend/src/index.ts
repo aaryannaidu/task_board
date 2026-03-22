@@ -10,7 +10,7 @@ import { authenticate } from './middleware/authenticate';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ limit: '10mb' })); // base64 avatar images can be large
+app.use(express.json({ limit: '10mb' })); 
 app.use(cookieParser());
 
 app.use('/api/auth', require('./routes/auth').default);
