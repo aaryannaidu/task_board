@@ -279,6 +279,7 @@ const ProjectPage: React.FC = () => {
       {state.status === "ok" && (() => {
         const { project } = state;
         const currentRole = myRole(project);
+        const isAdmin = currentRole === "ADMIN" || authState.user?.globalRole === "ADMIN";
         const boards = project.boards ?? [];
         const members = project.projectMembers ?? [];
 
@@ -335,7 +336,7 @@ const ProjectPage: React.FC = () => {
                   </div>
                 </div>
 
-                {currentRole === "ADMIN" && (
+                {isAdmin && (
                   <button 
                     className="btn btn--secondary btn--small"
                     onClick={() => {
@@ -369,7 +370,7 @@ const ProjectPage: React.FC = () => {
                     Boards
                     <span className="section-count">{boards.length}</span>
                   </h2>
-                  {currentRole === "ADMIN" && (
+                  {isAdmin && (
                     <button 
                       className="btn btn--secondary btn--small" 
                       onClick={() => {
@@ -408,7 +409,7 @@ const ProjectPage: React.FC = () => {
                     Members
                     <span className="section-count">{members.length}</span>
                   </h2>
-                  {currentRole === "ADMIN" && (
+                  {isAdmin && (
                     <button 
                       className="btn btn--secondary btn--small" 
                       onClick={() => {

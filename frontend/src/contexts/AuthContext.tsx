@@ -6,7 +6,7 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
-  globalRole: "GLOBAL_ADMIN" | "MEMBER";
+  globalRole: "ADMIN" | "MEMBER";
 }
 
 interface AuthState {

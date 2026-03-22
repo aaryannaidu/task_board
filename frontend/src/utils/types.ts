@@ -1,6 +1,6 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-export type GlobalRole = "GLOBAL_ADMIN" | "MEMBER";
+export type GlobalRole = "ADMIN" | "MEMBER";
 export type ProjectRole = "ADMIN" | "MEMBER" | "VIEWER";
 export type IssueType = "STORY" | "TASK" | "BUG";
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";

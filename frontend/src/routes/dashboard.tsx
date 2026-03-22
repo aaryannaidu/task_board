@@ -155,17 +155,19 @@ const Dashboard: React.FC = () => {
             Show archived
           </label>
 
-          <button
-            id="btn-new-project"
-            className="btn btn--primary"
-            onClick={openModal}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Create Project
-          </button>
+          {authState.user?.globalRole === 'ADMIN' && (
+            <button
+              id="btn-new-project"
+              className="btn btn--primary"
+              onClick={openModal}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Create Project
+            </button>
+          )}
 
           <HeaderActions />
         </div>
@@ -212,12 +214,14 @@ const Dashboard: React.FC = () => {
               </svg>
             </p>
             <p>No projects yet.</p>
-            <button
-              className="btn btn--primary"
-              onClick={openModal}
-            >
-              Create your first project
-            </button>
+            {authState.user?.globalRole === 'ADMIN' && (
+              <button
+                className="btn btn--primary"
+                onClick={openModal}
+              >
+                Create your first project
+              </button>
+            )}
           </div>
         )}
 

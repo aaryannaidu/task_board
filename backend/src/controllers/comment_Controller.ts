@@ -16,6 +16,27 @@ export async function createcomment(req:Request,res:Response):Promise<void>{
             res.status(404).json({error:"Task Not Found"});
             return;
         }
+
+        // Block VIEWERs from commenting via task → column → board → project
+        const taskColumn = await prisma.column.findUnique({
+            where: { id: task.columnID },
+            include: { board: true }
+        });
+        if (taskColumn) {
+            const member = await prisma.projectMember.findUnique({
+                where: {
+                    userID_projectID: {
+                        userID: req.user!.userID,
+                        projectID: taskColumn.board.projectID
+                    }
+                }
+            });
+            if (member?.role === 'VIEWER') {
+                res.status(403).json({error: "Viewers cannot post comments"});
+                return;
+            }
+        }
+
         const comment= await prisma.comment.create({
             data:{
                 content,
@@ -117,7 +138,31 @@ export async function updatecomment(req:Request,res:Response):Promise<void>{
             res.status(404).json({error:"Comment Not Found"});
             return;
         }
-        if(comment?.authorID!== req.user!.userID){
+
+        // Block VIEWERs from editing comments via task → column → board → project
+        const editTask = await prisma.task.findUnique({ where: { id: comment.taskID } });
+        if (editTask) {
+            const editColumn = await prisma.column.findUnique({
+                where: { id: editTask.columnID },
+                include: { board: true }
+            });
+            if (editColumn) {
+                const member = await prisma.projectMember.findUnique({
+                    where: {
+                        userID_projectID: {
+                            userID: req.user!.userID,
+                            projectID: editColumn.board.projectID
+                        }
+                    }
+                });
+                if (member?.role === 'VIEWER') {
+                    res.status(403).json({error: "Viewers cannot edit comments"});
+                    return;
+                }
+            }
+        }
+
+        if(comment?.authorID !== req.user!.userID){
             res.status(403).json({error:"You can only edit your own comment"});
             return;
         }
@@ -139,7 +184,6 @@ export async function updatecomment(req:Request,res:Response):Promise<void>{
     catch(error:unknown){
         res.status(500).json({error:"Something went wrong , Try again later"});
     }
-
 }
 
 export async function deletecomment(req:Request, res:Response):Promise<void>{
@@ -173,4 +217,3 @@ export async function deletecomment(req:Request, res:Response):Promise<void>{
         res.status(500).json({error:"Something went wrong, Try again later"});
     }
 }
-

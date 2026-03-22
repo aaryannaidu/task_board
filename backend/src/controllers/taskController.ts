@@ -23,6 +23,10 @@ export async function createtask(req:Request,res:Response):Promise<void>{
             res.status(403).json({error:"Not a member of project"})
             return;
         }
+        if(member.role === 'VIEWER'){
+            res.status(403).json({error:"Viewers cannot create tasks"})
+            return;
+        }
         const column= await prisma.column.findUnique({where:{id:columnId}});
         if(!column){
             res.status(404).json({error:"Column not found "})
@@ -198,13 +202,32 @@ export async function updatetask(req:Request,res:Response):Promise<void>{
         const taskid= parseInt(req.params.taskid as string);
         const{title,description,prioroity,assigneeId,dueDate}= req.body as UpdateTaskBody;
 
-        const task=await prisma.task.findUnique({ where:{
-            id:taskid
-        }});
+        const task=await prisma.task.findUnique({ where:{ id:taskid }});
         if(!task){
             res.status(404).json({error:"Task Not Found"});
             return;
         }
+
+        // Check VIEWER restriction via column → board → project
+        const taskColumn = await prisma.column.findUnique({
+            where: { id: task.columnID },
+            include: { board: true }
+        });
+        if (taskColumn) {
+            const member = await prisma.projectMember.findUnique({
+                where: {
+                    userID_projectID: {
+                        userID: req.user!.userID,
+                        projectID: taskColumn.board.projectID
+                    }
+                }
+            });
+            if (member?.role === 'VIEWER') {
+                res.status(403).json({error: "Viewers cannot update tasks"});
+                return;
+            }
+        }
+
         if(assigneeId !== undefined && assigneeId !== task?.assigneeID){
             await prisma.auditLog.create({
                 data:{
@@ -241,7 +264,6 @@ export async function updatetask(req:Request,res:Response):Promise<void>{
     catch(error:unknown){
         res.status(500).json({error:"Something went wrong , Try again later"});
     }
-
 }
 
 export async function movetask(req:Request,res:Response):Promise<void>{
@@ -254,6 +276,26 @@ export async function movetask(req:Request,res:Response):Promise<void>{
         if(!task){
             res.status(404).json({error:"Task Not Found"});
             return;
+        }
+
+        // Check VIEWER restriction via task's column → board → project
+        const currentColumn = await prisma.column.findUnique({
+            where: { id: task.columnID },
+            include: { board: true }
+        });
+        if (currentColumn) {
+            const member = await prisma.projectMember.findUnique({
+                where: {
+                    userID_projectID: {
+                        userID: req.user!.userID,
+                        projectID: currentColumn.board.projectID
+                    }
+                }
+            });
+            if (member?.role === 'VIEWER') {
+                res.status(403).json({error: "Viewers cannot move tasks"});
+                return;
+            }
         }
 
         if(task.type=="STORY"){
@@ -276,16 +318,12 @@ export async function movetask(req:Request,res:Response):Promise<void>{
                 return ;
             }
         }
-        const currentcolumn = await prisma.column.findUnique({
-            where: { id: task.columnID }
-        });
-
-        if (!currentcolumn) {
+        if (!currentColumn) {
             res.status(404).json({error:"Current Column Not Found"});
             return;
         }
 
-        if (targetcolumn.order <= currentcolumn.order) {
+        if (targetcolumn.order <= currentColumn.order) {
             res.status(400).json({error:"Tasks can only be moved from left to right (forward)"});
             return;
         }
@@ -338,6 +376,26 @@ export async function deletetask(req:Request,res:Response):Promise<void>{
         });
         if(!task){
             res.status(404).json({error:"Task Not Found"});
+            return;
+        }
+        // Check VIEWER restriction via column → board → project
+        const delCol = await prisma.column.findUnique({
+            where: { id: task.columnID },
+            include: { board: true }
+        });
+        if (delCol) {
+            const member = await prisma.projectMember.findUnique({
+                where: {
+                    userID_projectID: {
+                        userID: req.user!.userID,
+                        projectID: delCol.board.projectID
+                    }
+                }
+            });
+            if (member?.role === 'VIEWER') {
+                res.status(403).json({error: "Viewers cannot delete tasks"});
+                return;
+            }
         }
         await prisma.task.delete({
             where:{id:taskid}
