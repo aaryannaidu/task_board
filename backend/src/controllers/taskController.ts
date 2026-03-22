@@ -309,6 +309,18 @@ export async function movetask(req:Request,res:Response):Promise<void>{
             res.status(404).json({error:"Target Column Not Found"});
             return ;
         }
+        const transition = await prisma.workTransition.findFirst({
+            where: {
+                boardID: targetcolumn.boardID,
+                fromStatus: task.status,
+                toStatus: targetcolumn.name
+            }
+            });
+
+        if (!transition) {
+            res.status(400).json({ error: 'This status transition is not allowed' });
+            return;
+        }
         if(targetcolumn.wipLimit !== null){
             const taskcount = await prisma.task.count({
                 where:{columnID:columnId}
