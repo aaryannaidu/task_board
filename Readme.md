@@ -268,12 +268,22 @@ Transitions define which column moves are allowed. Without them tasks cannot be 
 
 
 ## Running Tests
+
+### Install test dependencies
+
+Before running tests make sure these are installed:
+```bash
+cd backend
+npm install --save-dev jest ts-jest @types/jest supertest @types/supertest
+```
+
+### Run all tests
 ```bash
 cd backend
 npm test
 ```
 
-To run a specific test file:
+### Run a specific test file
 ```bash
 npm test auth      # only auth tests
 npm test task      # only task tests
@@ -288,11 +298,14 @@ npm test project   # only project tests
 | `task.test.ts` | Create task, WIP limit, STORY rule, transitions |
 | `project.test.ts` | Create project, add members, archive, permissions |
 
-Expected output:
+### Expected output
 ```
 Test Suites: 3 passed, 3 total
 Tests:       29 passed
 ```
+
+> **Warning:** Running tests will clear your database.
+> Do not run tests if you have important data you want to keep.
 
 
 ## API Documentation
