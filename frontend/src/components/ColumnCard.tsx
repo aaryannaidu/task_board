@@ -32,13 +32,7 @@ const TaskCard = ({ task, onClick }: { task: Task; onClick?: () => void }) => (
       <span className={`task-tag task-tag--${task.priority.toLowerCase()}`}>{task.priority}</span>
     </div>
     <div className="task-card__footer">
-      <div className="task-id">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="#22c55e" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="issue-icon">
-           <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
-           <line x1="4" y1="22" x2="4" y2="15"></line>
-        </svg>
-        <span>{task.id}</span>
-      </div>
+
       {task.assignee ? (
           <Avatar
             name={task.assignee.name}

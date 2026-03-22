@@ -30,8 +30,7 @@ const BoardCard: React.FC<BoardCardProps> = ({ board, projectId }) => {
       aria-label={`Open board ${board.name}`}
       style={{ "--board-hue": hue } as React.CSSProperties}
     >
-      {/* Top accent glow bar */}
-      <div className="board-card__accent" />
+
 
       <div className="board-card__body">
         {/* Icon */}

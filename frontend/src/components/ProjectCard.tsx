@@ -31,11 +31,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, currentUserRole }) =
       onKeyDown={(e) => e.key === "Enter" && navigate(`/projects/${project.id}`)}
       aria-label={`Open project ${project.name}`}
     >
-      {/* Coloured accent bar — unique hue per project based on id */}
-      <div
-        className="project-card__accent"
-        style={{ background: `hsl(${(project.id * 67) % 360}, 70%, 55%)` }}
-      />
+
 
       <div className="project-card__body">
         <div className="project-card__header">
