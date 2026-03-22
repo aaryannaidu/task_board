@@ -392,7 +392,7 @@ export async function movetask(req:Request,res:Response):Promise<void>{
 
 export async function deletetask(req:Request,res:Response):Promise<void>{
     try{
-        const taskid= parseInt(req.params.id as string);
+        const taskid= parseInt(req.params.taskid as string);
         const task = await prisma.task.findUnique({
             where:{id:taskid}
         });
