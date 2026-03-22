@@ -190,5 +190,10 @@ export interface Notification {
     id: number;
     title: string;
     status: string;
+    column?: {
+      board: {
+        projectID: number;
+      };
+    };
   };
 }

@@ -10,11 +10,18 @@ export async function getnotification (req:Request,res:Response):Promise<void>{
                     select:{
                         id:true,
                         title:true,
-                        status:true
+                        status:true,
+                        column: {
+                            select:{
+                                board:{
+                                    select:{ projectID: true }
+                                }
+                            }
+                        }
                     }
                 }
             },
-            orderBy:{createdAt:"asc"}
+            orderBy:{createdAt:"desc"}
         });
         res.status(200).json(notifications)
     }

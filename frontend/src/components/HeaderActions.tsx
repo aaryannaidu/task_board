@@ -6,6 +6,7 @@ import type { Notification } from "../utils/types";
 
 const HeaderActions: React.FC = () => {
   const { state: authState, dispatch: dispatchAuth } = useAuth();
+  const isLoading = authState.isLoading;
   const navigate = useNavigate();
 
   // ─── Notifications state ────────────────────────────────────────────────────
@@ -42,6 +43,17 @@ const HeaderActions: React.FC = () => {
     }
   };
 
+  const handleNotificationClick = async (n: Notification) => {
+    if (!n.read) {
+      await handleMarkAsRead(n.id);
+    }
+    const projectId = n.task?.column?.board?.projectID;
+    if (n.taskID && projectId) {
+      navigate(`/projects/${projectId}/tasks/${n.taskID}`);
+      setShowNotifications(false);
+    }
+  };
+
   // ─── User Menu state ────────────────────────────────────────────────────────
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -58,7 +70,18 @@ const HeaderActions: React.FC = () => {
 
   // Close menus when clicking outside could be added, but toggling is fine for now
   
-  if (!authState.user) return null;
+  // While session is restoring, show a subtle skeleton so the layout doesn't shift
+  if (!authState.user) {
+    if (isLoading) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)' }} />
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(99,102,241,0.3)' }} />
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -107,11 +130,14 @@ const HeaderActions: React.FC = () => {
                 <p style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-dim, #9ca3af)', margin: 0 }}>No notifications yet.</p>
               ) : (
                 notifications.map(n => (
-                  <div key={n.id} style={{
+                  <div key={n.id} 
+                    onClick={() => handleNotificationClick(n)}
+                    style={{
                     padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)',
                     background: n.read ? 'transparent' : 'rgba(59, 130, 246, 0.08)',
                     display: 'flex', gap: '12px', alignItems: 'flex-start',
-                    transition: 'background 0.2s'
+                    transition: 'background 0.2s',
+                    cursor: n.taskID ? 'pointer' : 'default'
                   }}>
                     <div style={{ flex: 1 }}>
                       <p style={{ margin: '0 0 4px 0', fontSize: '0.9rem', color: n.read ? 'var(--text-dim, #9ca3af)' : 'var(--text-main, #f8f8f8)' }}>
@@ -122,7 +148,7 @@ const HeaderActions: React.FC = () => {
                           {new Date(n.createdAt).toLocaleString()}
                         </span>
                         {!n.read && (
-                          <button onClick={() => handleMarkAsRead(n.id)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.75rem', cursor: 'pointer', padding: '4px' }}>
+                          <button onClick={(e) => { e.stopPropagation(); handleMarkAsRead(n.id); }} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.75rem', cursor: 'pointer', padding: '4px' }}>
                             Mark Read
                           </button>
                         )}
