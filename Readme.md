@@ -133,7 +133,7 @@ Server running on http://localhost:3000
 | `npm run dev` | Start server with auto-restart on file changes |
 | `npm run build` | Compile TypeScript to JavaScript |
 | `npm run start` | Run the compiled production build | 
-| `npm run lint` | Check code for errors |
+
 
 
 
@@ -159,7 +159,6 @@ Open **http://localhost:5173** in your browser.
 | `npm run dev` | Start development server with hot reload |
 | `npm run build` | Build for production |
 | `npm run preview` | Preview the production build |
-| `npm run lint` | Check code for errors |
 
 
 ## Running the Full Project
